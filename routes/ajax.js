@@ -104,7 +104,7 @@ exports.login = function(req, res) {
 			console.log('ajax.js:login/', err);
 			res.send(err);
 		} else {
-			res.send('login success');
+			res.redirect('/lobby');
 		}
 	});	
 };
@@ -133,7 +133,7 @@ exports.logout = function(req, res) {
 			console.log('ajax.js:logout/', err);
 			res.send(err);
 		} else {
-			res.send('logout success');
+			res.redirect('/login');
 		}
 	});
 }

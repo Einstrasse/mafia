@@ -72,7 +72,7 @@ db_conn.once('open', function() {
 var routes_view = require('./routes/view')
   , routes_ajax = require('./routes/ajax');
 
-app.get('/', routes_view.index);
+app.get('/', sessChk(false), sessChk(true), routes_view.index);
 app.get('/login', sessChk(false), routes_view.login);
 app.get('/register', sessChk(false), routes_view.register);
 app.get('/lobby', sessChk(true), routes_view.lobby);
