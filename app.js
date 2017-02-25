@@ -21,6 +21,26 @@ Object.keys(global_json).map(function(key) {
 	global[key] = global_json[key];
 });
 
+var sessChk = function(needSession) {
+	if (needSession) { //로그인한 상태에서만 접근 가능한 페이지
+		return function(req, res, next) {
+			if (req.session && req.session.user_id) {
+				next();
+			} else {
+				res.redirect('/login');
+			}
+		};
+	} else {
+		return function(req, res, next) { //로그인 하지 않은 상태에서만 접근 가능한 페이지
+			if (req.session && req.session.user_id) {
+				res.redirect('/lobby');
+			} else {
+				next();
+			}
+		};
+	}
+};
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -53,11 +73,13 @@ var routes_view = require('./routes/view')
   , routes_ajax = require('./routes/ajax');
 
 app.get('/', routes_view.index);
-app.get('/login', routes_view.login);
-app.get('/register', routes_view.register);
+app.get('/login', sessChk(false), routes_view.login);
+app.get('/register', sessChk(false), routes_view.register);
+app.get('/lobby', sessChk(true), routes_view.lobby);
 
 app.post('/ajax/register', routes_ajax.register);
 app.post('/ajax/login', routes_ajax.login);
+app.all('/ajax/logout', routes_ajax.logout);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
 http.createServer(app).listen(app.get('port'), function(){
