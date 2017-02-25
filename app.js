@@ -2,16 +2,22 @@
 /**
  * Module dependencies.
  */
+global.__path = __dirname + '/';
 
 var express = require('express')
-  , routes_view = require('./routes/view')
-  , routes_ajax = require('./routes/ajax')
-  , user = require('./routes/user')
   , http = require('http')
+  , mongoose = require('mongoose')
+  , fs = require('fs')
   , path = require('path');
 
 var app = express();
 var port = process.env.PORT || 3000;
+
+var global_json = JSON.parse(fs.readFileSync(__path + 'config.json'));
+Object.keys(global_json).map(function(key) {
+	global[key] = global_json[key];
+});
+
 
 app.configure(function(){
   app.set('port', port);
@@ -30,10 +36,22 @@ app.configure('development', function(){
   app.use(express.errorHandler());
 });
 
+mongoose.connect(__dbHost);
+
+var db_conn = mongoose.connection;
+db_conn.on('error', console.error.bind(console, 'connection error:'));
+db_conn.once('open', function() {
+  console.log('mongodb connection established successfully');
+});
+
+var routes_view = require('./routes/view')
+  , routes_ajax = require('./routes/ajax');
+
 app.get('/', routes_view.index);
-app.get('/users', user.list);
 app.get('/login', routes_view.login);
 app.get('/register', routes_view.register);
+
+app.post('/ajax/register', routes_ajax.register);
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));
