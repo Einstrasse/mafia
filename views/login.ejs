@@ -36,12 +36,12 @@
 
     <div class="container">
 
-      <form class="form-signin">
+      <form class="form-signin" action="/ajax/login" method="post">
         <h2 class="form-signin-heading">로그인 하세요</h2>
-        <label for="inputEmail" class="sr-only">이름</label>
-        <input type="text" id="inputEmail" class="form-control" placeholder="이름" required autofocus>
-        <label for="inputPassword" class="sr-only">생년월일</label>
-        <input type="date" id="inputPassword" class="form-control" placeholder="생년월일" required>
+        <label for="name" name="name" class="sr-only">이름</label>
+        <input type="text" id="name" name="name" class="form-control" placeholder="이름" required autofocus>
+        <label for="birth" name="birth" class="sr-only">생년월일</label>
+        <input type="date" id="birth" name="birth" class="form-control" placeholder="생년월일" required>
         <div class="checkbox">
           <label>
             <input type="checkbox" value="remember-me"> Remember me
@@ -49,8 +49,10 @@
         </div>
         <button class="btn btn-lg btn-primary btn-block" type="submit">로그인</button><br />
       </form>
-	  <a href="register">
-		<button class="btn btn-lg btn-primary btn-block btn-outof-form">회원가입</button>
+	  <a href="/register" class="no-deco">
+		<button class="btn btn-lg btn-primary btn-block btn-outof-form">
+			회원가입
+		</button>
 	  </a>
 
     </div> <!-- /container -->

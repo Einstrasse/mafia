@@ -42,7 +42,10 @@ body {
 .btn-outof-form {
 	max-width: 300px;
 	max-height: 50px;
-
 	padding: 10px 16px 10px 16px;
 	margin: 0 auto;
+}
+
+.no-deco:hover {
+	text-decoration: none;
 }
