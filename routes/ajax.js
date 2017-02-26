@@ -104,7 +104,23 @@ exports.login = function(req, res) {
 			console.log('ajax.js:login/', err);
 			res.send(err);
 		} else {
-			res.redirect('/lobby');
+			if (req.body['remember-me']) {
+				res.send([
+					'<script>',
+						"localStorage.clear();",
+						"localStorage.setItem('name','" + req.body.name + "');",
+						"localStorage.setItem('birth','" + req.body.birth + "');",
+						"location.href = '/lobby'",
+					'</script>'
+				].join(''));				
+			} else {
+				res.send([
+					'<script>',
+						"localStorage.clear();",
+						"location.href = '/lobby'",
+					'</script>'
+				].join(''));	
+			}
 		}
 	});	
 };
