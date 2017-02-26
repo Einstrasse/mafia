@@ -1,9 +1,9 @@
 var async = require('async');
-	// , session = require('express-session');
 var db = {
 	user: require(__path + 'module/db/user').user,
 	room: require(__path + 'module/db/room').room
 };
+var mod_room = require(__path + 'module/room');
 
 exports.register = function(req, res) {
 	async.waterfall([
@@ -199,12 +199,25 @@ exports.create_room = function(req, res) {
 					consoloe.log('db save err:', err);
 					cb('db 저장 에러');
 				} else {
-					cb(null);
+					cb(null, room_number);
 				}
 			});
 		},
-		cb => {
+		(room_number, cb) => {
+			mod_room.join_room({
+				room_number: room_number,
+				user_id: req.session.user_id
+			}, function(err, room_number) {
+				if (err) {
+					console.log('db update err:', err);
+					cb('방 참가 에러');
+				} else {
+					cb(null, room_number);
+				}
+			});
+			/*
 			db.room.update({
+				No: room_number,
 				leader_id: req.session.user_id
 			}, {
 				$addToSet: {
@@ -215,11 +228,12 @@ exports.create_room = function(req, res) {
 					console.log('db update err:', err);
 					cb('방 참가 에러');
 				} else {
-					cb(null);
+					cb(null, room_number);
 				}
-			})
+			});
+			*/
 		}
-	], function(err) {
+	], function(err, room_number) {
 		if (err) {
 			console.log('ajax.js:create_room/', err);
 			res.json({
@@ -227,8 +241,9 @@ exports.create_room = function(req, res) {
 			});
 		} else {
 			res.json({
-				result: true
-			})
+				result: true,
+				room_number: room_number
+			});
 		}
 	});
 };
@@ -255,6 +270,41 @@ exports.get_room_list = function(req, res) {
 			res.json({
 				result: true,
 				data: result
+			});
+		}
+	});
+};
+
+exports.get_joined_user_list = function(req, res) {
+	var room_no = req.query.no;
+	
+	async.waterfall([
+		cb => {
+			db.room.findOne({
+				No: room_no
+			}, function(err, data) {
+				if (err) {
+					console.log('db조회 에러', err);
+					cb('db 조회 에러');
+				} else {
+					if (data && data.joined_users) {
+						cb(null, data.joined_users);
+					} else {
+						cb('방 정보가 없습니다.');
+					}
+				}
+			});
+		}
+	], function(err, joined_user) {
+		if (err) {
+			console.log('err:', err);
+			res.json({
+				error: err
+			});
+		} else {
+			res.json({
+				result: true,
+				data: joined_user
 			});
 		}
 	});

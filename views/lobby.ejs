@@ -96,7 +96,9 @@
 						room_limit_num: room_limit_num
 					}, function(res) {
 						if (res && res.result) {
+							var room_no = res.room_number;
 							alert('방 생성 성공');
+							location.href = '/room?no=' + room_no;
 						} else {
 							if(res.error) {
 								alert('error:' + res.error);
@@ -122,7 +124,7 @@
 				}
 				var update_room_list = function() {
 					$('.game-room-info').remove();
-					$.get('/ajax/get_room_list', function(res) {
+					$.get('/ajax/room_list', function(res) {
 						var $room_list = $('#room_list');
 						var html = '';
 						if (res && res.result && res.data && res.data.length > 0) {
@@ -137,7 +139,8 @@
 										'/' + item.max_seat +' 명<br>',
 										time_formatting(item.create_time),
 										'</p>',
-										'<a href="#!" class="btn secondary-content">',
+										'<a href="/room?no=' + item.No,
+											'" class="btn secondary-content">',
 										'<i class="material-icons">play_arrow</i></a>',
 									'</li>'
 								].join('');
