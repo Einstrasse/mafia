@@ -27,12 +27,11 @@
 							<i class="btn material-icons" style="padding-top:5px;">menu</i>
 						</a>방 목록</h4>
 				</li>
-				<li class="collection-item avatar game-room-info">
-					<i class="material-icons circle red">cloud</i>
-					<span class="title">방이름</span>
-					<p>인원수 2/8 명<br>
-					</p>
-					<a href="#!" class="btn secondary-content"><i class="material-icons">play_arrow</i></a>
+					
+				<li class="collection-item game-room-info">
+					<div class="progress">
+						<div class="indeterminate"></div>
+					</div>
 				</li>
 			</ul>
 		</div>
@@ -143,8 +142,14 @@
 									'</li>'
 								].join('');
 							});
-							$room_list.append($(html));
+						} else {
+							html += [
+								'<li class="collection-item game-room-info">',
+									'방이 없습니다. 방을 생성해주세요.',
+								'</li>'
+							].join('');
 						}
+						$room_list.append($(html));
 					});
 				};
 				
