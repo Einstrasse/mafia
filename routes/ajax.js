@@ -75,19 +75,16 @@ exports.login = function(req, res) {
 		cb => {
 			db.user.findOne({
 				name: req.body.name,
+				birth: req.body.birth
 			}, function(err, result) {
 				if (err) {
 					console.log('db find error');
 					cb('DB 조회 에러');
 				} else {
 					if (result) {
-						if (result.birth === req.body.birth) {
-							cb(null);
-						} else {
-							cb('생년월일이 틀립니다.');
-						}
+						cb(null);
 					} else {
-						cb('해당 유저가 없습니다.');
+						cb('해당 유저가 없거나 생년월일이 틀립니다.');
 					}
 				}
 			});
@@ -181,7 +178,7 @@ exports.create_room = function(req, res) {
 					cb('db No 조회 에러');
 				} else {
 					if (result && result[0] && result[0].No) {
-						cb(null, result[0].No);
+						cb(null, result[0].No + 1);
 					} else {
 						cb(null, 1);
 					}
@@ -205,6 +202,22 @@ exports.create_room = function(req, res) {
 					cb(null);
 				}
 			});
+		},
+		cb => {
+			db.room.update({
+				leader_id: req.session.user_id
+			}, {
+				$addToSet: {
+					joined_users: req.session.user_id
+				}
+			}, function(err) {
+				if (err) {
+					console.log('db update err:', err);
+					cb('방 참가 에러');
+				} else {
+					cb(null);
+				}
+			})
 		}
 	], function(err) {
 		if (err) {
@@ -216,6 +229,33 @@ exports.create_room = function(req, res) {
 			res.json({
 				result: true
 			})
+		}
+	});
+};
+
+exports.get_room_list = function(req, res) {
+	async.waterfall([
+		cb => {
+			db.room.find({}, function(err, result) {
+				if (err) {
+					console.log('db find err:', err);
+					cb('db 조회 에러');
+				} else {
+					cb(null, result);
+				}
+			});
+		}
+	], function(err, result) {
+		if (err) {
+			console.log('ajax.js:get_room_list error:', err);
+			res.json({
+				error: err
+			});
+		} else {
+			res.json({
+				result: true,
+				data: result
+			});
 		}
 	});
 };

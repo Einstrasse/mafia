@@ -19,25 +19,41 @@
 		
 		<script src="/js/jquery-3.1.1.min.js"></script>
 		<script src="/js/materialize.min.js"></script>
+		<div class="container">
+			<ul class="collection with-header" id="room_list">
+				<li class="collection-header">
+					<h4>
+						<a href="#" data-activates="slide-out" class="button-collapse">
+							<i class="btn material-icons" style="padding-top:5px;">menu</i>
+						</a>방 목록</h4>
+				</li>
+				<li class="collection-item avatar game-room-info">
+					<i class="material-icons circle red">cloud</i>
+					<span class="title">방이름</span>
+					<p>인원수 2/8 명<br>
+					</p>
+					<a href="#!" class="btn secondary-content"><i class="material-icons">play_arrow</i></a>
+				</li>
+			</ul>
+		</div>
+		
 		<ul id="slide-out" class="side-nav">
-		<li>
-			<div class="userView">
-				<div class="background">
-					<img src="images/office.jpg">
+			<li>
+				<div class="userView">
+					<div class="background">
+						<img src="images/office.jpg">
+					</div>
+					<a href="#!user"><img id="user_identicon" class="circle" src="images/yuna.jpg"></a>
+					<a href="#!name"><span class="white-text name">이름: <%= name %></span></a>
+					<a href="#!birth"><span class="white-text email">생년월일: <%= birth %></span></a>
 				</div>
-				<a href="#!user"><img id="user_identicon" class="circle" src="images/yuna.jpg"></a>
-				<a href="#!name"><span class="white-text name">이름: <%= name %></span></a>
-				<a href="#!birth"><span class="white-text email">생년월일: <%= birth %></span></a>
-			</div>
-		</li>
-		<li><a class="subheader">상태 관리</a></li>
-		<li><a href="/ajax/logout"><i class="material-icons">power_settings_new</i>로그아웃</a></li>
-		<li><div class="divider"></div></li>
-		<li><a class="subheader">게임 하기</a></li>
-		<li><a class="waves-effect" href="#new-room-modal"><i class="material-icons">add</i>방 만들기</a></li>
+			</li>
+			<li><a class="subheader">상태 관리</a></li>
+			<li><a href="/ajax/logout"><i class="material-icons">power_settings_new</i>로그아웃</a></li>
+			<li><div class="divider"></div></li>
+			<li><a class="subheader">게임 하기</a></li>
+			<li><a class="waves-effect" href="#new-room-modal"><i class="material-icons">add</i>방 만들기</a></li>
 		</ul>
-		<a href="#" data-activates="slide-out" class="button-collapse"><i class="btn material-icons">menu</i></a>
-		<a class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a>
 
 		<!-- Modal Structure -->
 		<div id="new-room-modal" class="modal">
@@ -92,6 +108,48 @@
 						$('#new-room-modal').modal('close');
 					});
 				});
+				
+				var time_formatting = function(timeString) {
+					var o = new Date(timeString);
+					
+					var year = o.getFullYear();
+					var month = o.getMonth() + 1;
+					var day = o.getDate();
+					var hour = o.getHours();
+					var min = o.getMinutes();
+					var sec = o.getSeconds();
+					
+					return [year, month, day].join('/') + ' ' + [hour, min, sec].join(':');
+				}
+				var update_room_list = function() {
+					$('.game-room-info').remove();
+					$.get('/ajax/get_room_list', function(res) {
+						var $room_list = $('#room_list');
+						var html = '';
+						if (res && res.result && res.data && res.data.length > 0) {
+							window.obj = res.data;
+
+							res.data.map(function(item) {
+								html += [
+									'<li class="collection-item avatar game-room-info">',
+										'<i class="material-icons circle red">cloud</i>',
+										'<span class="title">(#' + item.No + ')' + item.name +'</span>',
+										'<p>인원수 ' + (item.joined_users.length > 0 ? item.joined_users.length : 0),
+										'/' + item.max_seat +' 명<br>',
+										time_formatting(item.create_time),
+										'</p>',
+										'<a href="#!" class="btn secondary-content">',
+										'<i class="material-icons">play_arrow</i></a>',
+									'</li>'
+								].join('');
+							});
+							$room_list.append($(html));
+						}
+					});
+				};
+				
+				update_room_list();
+				
 			});
 		</script>
 	</body>

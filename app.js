@@ -83,6 +83,7 @@ app.post('/ajax/login', sessChk(false), routes_ajax.login);
 
 app.all('/ajax/logout', sessChk(true), routes_ajax.logout);
 app.post('/ajax/create_room', sessChk(true), routes_ajax.create_room);
+app.get('/ajax/get_room_list', sessChk(true), routes_ajax.get_room_list);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
 http.createServer(app).listen(app.get('port'), function(){
