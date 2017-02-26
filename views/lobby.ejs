@@ -11,6 +11,12 @@
 		<title>Game Lobby</title>
 	</head>
 	<body>
+		<script src="/js/core-min.js"></script>
+		<script src="/js/md5-min.js"></script>
+		<script src="/js/color-hash.js"></script>
+		<script src="/js/pnglib.js"></script>
+		<script src="/js/identicon.js"></script>
+		
 		<script src="/js/jquery-3.1.1.min.js"></script>
 		<script src="/js/materialize.min.js"></script>
 		<ul id="slide-out" class="side-nav">
@@ -19,62 +25,74 @@
 				<div class="background">
 					<img src="images/office.jpg">
 				</div>
-				<a href="#!user"><img class="circle" src="images/yuna.jpg"></a>
+				<a href="#!user"><img id="user_identicon" class="circle" src="images/yuna.jpg"></a>
 				<a href="#!name"><span class="white-text name">이름: <%= name %></span></a>
-				<a href="#!email"><span class="white-text email">생년월일: <%= birth %></span></a>
+				<a href="#!birth"><span class="white-text email">생년월일: <%= birth %></span></a>
 			</div>
 		</li>
-		<li><a href="/ajax/logout"><i class="material-icons">cloud</i>로그아웃</a></li>
-		<li><a href="#!">Second Link</a></li>
+		<li><a class="subheader">상태 관리</a></li>
+		<li><a href="/ajax/logout"><i class="material-icons">power_settings_new</i>로그아웃</a></li>
 		<li><div class="divider"></div></li>
-		<li><a class="subheader">Subheader</a></li>
-		<li><a class="waves-effect" href="#!">Third Link With Waves</a></li>
+		<li><a class="subheader">게임 하기</a></li>
+		<li><a class="waves-effect" href="#new-room-modal"><i class="material-icons">add</i>방 만들기</a></li>
 		</ul>
 		<a href="#" data-activates="slide-out" class="button-collapse"><i class="btn material-icons">menu</i></a>
-		<!-- <div class="container">
-			<div class="row">
-				<div class="col-md-10 col-sm-9 col-xs-8">
-					<h1>방 리스트</h1>
-				</div>
-				<div class="col-md-2 col-sm-3 col-xs-4">
-					<a href="/ajax/logout">
-						<div class="btn btn-default pull-right" style="margin-top: 17px;">Logout</div>
-					</a>
-				</div>
+		<a class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a>
+
+		<!-- Modal Structure -->
+		<div id="new-room-modal" class="modal">
+			<div class="modal-content">
+				<h4>방 만들기</h4>
+				<p>방은 1인당 하나만 만들 수 있습니다. 방장이 나가면 방은 파괴됩니다.</p>
+				<!-- <form action="#"> -->
+				<p>
+					아래 스크롤을 끌어서 최대 입장 가능한 인원을 설정해주세요.
+				</p>
+					<p class="range-field">
+						<input type="range" id="room-limit-num" min="2" max="20" />
+					</p>
+				<!-- </form> -->
 			</div>
-			<ul class="list-group room-list">
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-				<li class="list-group-item">New <span class="badge">12</span></li>
-				<li class="list-group-item">Deleted <span class="badge">5</span></li> 
-				<li class="list-group-item">Warnings <span class="badge">3</span></li> 
-			</ul>
-		</div> -->
+			<div class="modal-footer">
+				<div id="create-room" class="modal-action waves-effect waves-green btn-flat">방 생성</div>
+				<div class="modal-action modal-close waves-effect waves-green btn-flat">취소</div>
+			</div>
+		</div>
+		<!-- Modal Structure End -->
 		
 		<script>
-		  $('.button-collapse').sideNav({
-			  menuWidth: 300, // Default is 300
-			  edge: 'left', // Choose the horizontal origin
-			  closeOnClick: true, // Closes side-nav on <a> clicks, useful for Angular/Meteor
-			  draggable: true // Choose whether you can drag to open on touch screens
-			}
-		  );
+			$(document).ready(function(){
+				// the "href" attribute of .modal-trigger must specify the modal ID that wants to be triggered
+				$('.modal').modal();
+				$('.button-collapse').sideNav({
+					menuWidth: 300, // Default is 300
+					edge: 'left', // Choose the horizontal origin
+					closeOnClick: true, // Closes side-nav on <a> clicks, useful for Angular/Meteor
+					draggable: true // Choose whether you can drag to open on touch screens
+				});
+				var user_id = "<%= user_id %>";
+				var hash = CryptoJS.MD5(user_id).toString();
+				var img_data = new Identicon(hash, 50).toString();
+				$('#user_identicon').attr('src', "data:image/png;base64," + img_data);
+				
+				$('#create-room').click(function() {
+					var room_limit_num = parseInt($('#room-limit-num').val(), 10);
+					$.post('/ajax/create_room', {
+						room_limit_num: room_limit_num
+					}, function(res) {
+						if (res && res.result) {
+							alert('방 생성 성공');
+						} else {
+							if(res.error) {
+								alert('error:' + res.error);
+							} else {
+								alert('응답없음');
+							}
+						}
+						$('#new-room-modal').modal('close');
+					});
+				});
+			});
 		</script>
 	</body>
 </html>

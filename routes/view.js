@@ -18,6 +18,7 @@ exports.register = function(req, res) {
 exports.lobby = function(req, res) {
 	res.render('lobby', {
 		name: req.session.name,
-		birth: req.session.birth
+		birth: req.session.birth,
+		user_id: req.session.user_id
 	});	
 };

@@ -75,11 +75,14 @@ var routes_view = require('./routes/view')
 app.get('/', sessChk(false), sessChk(true), routes_view.index);
 app.get('/login', sessChk(false), routes_view.login);
 app.get('/register', sessChk(false), routes_view.register);
-app.get('/lobby', sessChk(true), routes_view.lobby);
 
-app.post('/ajax/register', routes_ajax.register);
-app.post('/ajax/login', routes_ajax.login);
-app.all('/ajax/logout', routes_ajax.logout);
+app.get('/lobby', sessChk(true), routes_view.lobby);
+//////////////////////////////////////////////////////////
+app.post('/ajax/register', sessChk(false), routes_ajax.register);
+app.post('/ajax/login', sessChk(false), routes_ajax.login);
+
+app.all('/ajax/logout', sessChk(true), routes_ajax.logout);
+app.post('/ajax/create_room', sessChk(true), routes_ajax.create_room);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
 http.createServer(app).listen(app.get('port'), function(){

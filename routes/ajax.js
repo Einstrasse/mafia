@@ -1,7 +1,8 @@
 var async = require('async');
 	// , session = require('express-session');
 var db = {
-	user: require(__path + 'module/db/user').user
+	user: require(__path + 'module/db/user').user,
+	room: require(__path + 'module/db/room').room
 };
 
 exports.register = function(req, res) {
@@ -152,7 +153,72 @@ exports.logout = function(req, res) {
 			res.redirect('/login');
 		}
 	});
-}
+};
+
+exports.create_room = function(req, res) {
+	var room_limit_num = req.body.room_limit_num;
+	
+	async.waterfall([
+		cb => {
+			db.room.findOne({
+				leader_id: req.session.user_id
+			}, function(err, result) {
+				if (err) {
+					console.log('db.room.find Error:', err);
+					cb('db 조회 에러');
+				} else {
+					if (result) {
+						cb('이미 만든 방이 있습니다.');
+					} else {
+						cb(null);
+					}
+				}
+			});
+		},
+		cb => {
+			db.room.find().sort({No:-1}).limit(1).exec(function(err, result) {
+				if (err) {
+					cb('db No 조회 에러');
+				} else {
+					if (result && result[0] && result[0].No) {
+						cb(null, result[0].No);
+					} else {
+						cb(null, 1);
+					}
+				}
+			});
+		},
+		(room_number, cb) => {
+			var snapshot = new db.room({
+				No: room_number,
+				name: "'" + req.session.name + '"의 게임방',
+				leader_id: req.session.user_id,
+				max_seat: room_limit_num,
+				create_time: new Date()
+			});
+			
+			snapshot.save(function(err) {
+				if (err) {
+					consoloe.log('db save err:', err);
+					cb('db 저장 에러');
+				} else {
+					cb(null);
+				}
+			});
+		}
+	], function(err) {
+		if (err) {
+			console.log('ajax.js:create_room/', err);
+			res.json({
+				error: err
+			});
+		} else {
+			res.json({
+				result: true
+			})
+		}
+	});
+};
 
 exports.sessChk = function(req, res) {
 	console.log('session:', req.session);
