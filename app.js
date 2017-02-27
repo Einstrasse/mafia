@@ -5,7 +5,9 @@
 global.__path = __dirname + '/';
 
 var express = require('express')
-  , http = require('http')
+  , app = express()
+  , server = require('http').Server(app)
+  , io = require('socket.io')(server)
   , mongoose = require('mongoose')
   , bodyParser = require('body-parser')
   , fs = require('fs')
@@ -13,7 +15,7 @@ var express = require('express')
   , session = require('express-session')
   , cookieParser = require('cookie-parser');
 
-var app = express();
+// var app = express();
 var port = process.env.PORT || 3000;
 
 var global_json = JSON.parse(fs.readFileSync(__path + 'config.json'));
@@ -89,6 +91,21 @@ app.get('/ajax/room_list', sessChk(true), routes_ajax.get_room_list);
 app.get('/ajax/joined_user_list', sessChk(true), routes_ajax.get_joined_user_list);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
-http.createServer(app).listen(app.get('port'), function(){
+var num_user = 0;
+io.on('connection', function(socket) {
+	console.log('a user connected');
+	num_user++;
+	io.emit('sys_message', '유저 한명이 새로 접속했습니다. 유저수:' + num_user);
+	socket.on('disconnect', function() {
+		num_user--;
+		io.emit('sys_message', '유저 한명이 퇴장했습니다. 유저수:' + num_user);
+		console.log('user disconnected');
+	});
+	socket.on('message', function(msg){
+		io.emit('message', msg);
+	});
+});
+
+server.listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));
 });

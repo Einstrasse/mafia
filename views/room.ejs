@@ -114,6 +114,7 @@ width: 15%;
 	<script>
 	$(document).ready(function(){
 		var room_no = <%= room_no %>;
+		var user_id = "<%= user_id %>";
 		$('ul.tabs').tabs({
 			swipeable: true,
 			responsiveThreshold: 400
@@ -138,11 +139,16 @@ width: 15%;
 					var user_list = res.data;
 					$('.profile').remove();
 					$('#member_number').text(user_list.length.toString());
+					
 					user_list.map(function(user_id) {
 						if (user_id) {
 							var name = user_id.split('(').shift();
+							var hash = CryptoJS.MD5(user_id).toString();
+							var img_data = new Identicon(hash, 50).toString();
 							html += ['<li class="profile">',
-								'<img class="circle profile-sm" data-user_id="' + user_id + '">',
+								'<img class="circle profile-sm" src="data:image/png;base64,',
+									img_data,
+								'" data-user_id="' + user_id + '">',
 							 '<span>' + name + '</span></li>'
 							].join('');
 						}
@@ -152,6 +158,81 @@ width: 15%;
 			});
 		};
 		update_user_list();
+		
+		///////////////////
+		var socket = io();
+		var last_sender = null;
+		var avatar_type = 'identicon';
+		function showMessage(message) {
+			var avatar_box = ( avatar_type == 'identicon' )? 
+				createIdenticonAvatar( message.username ) : createLetterAvatar( message.username );
+
+			var who = ( $("#username").val() == message.username )? 'mine' : 'others';
+			var sender_visible = ( last_sender == message.username )? 'sender-hidden' : 'sender-show';
+
+
+			$('#chat').append(
+				$('<div class="message">').addClass(who).addClass(sender_visible)
+					.append( avatar_box )
+					.append( $('<div class="text-box">')
+						.append( $('<div class="username-box">' ).text( message.username ) )
+						.append( $('<div class="content-box">')
+							.append($('<span>').text(message.content))
+						)
+					)
+			);
+			$("#chat")[0].scrollTop = $("#chat")[0].scrollHeight;
+			last_sender = message.username;
+		}
+
+		function showSysMsg (msg) {
+
+			$('#chat').append(
+				$('<div class="message sys-info">')
+					.append( $('<div class="text-box">')
+						.append ( $('<div class="content-box">')
+							.append($('<span>').text(msg))
+					)
+				)
+			);
+			$("#chat")[0].scrollTop = $("#chat")[0].scrollHeight;
+			last_sender = 'system_notice';	
+		}
+		// function randomUsername() {
+		// 	var text = "";
+		// 	var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		// 	for (var i = 0; i < 5; i++)
+		// 		text += possible.charAt(Math.floor(Math.random() * possible.length));
+		// 	return text;
+		// }
+		
+		function createIdenticonAvatar( username ) {
+			var hash = CryptoJS.MD5(username).toString();
+			var img_data = new Identicon(hash, 50).toString();
+			return $('<div class="avatar-box">')
+				.append( $('<img class="photo">').attr('src', "data:image/png;base64," + img_data) );
+		}
+
+		$(function () {
+			$("form").submit( function (e) { e.preventDefault(); });
+			$('#send-btn').click(function () { send(); });
+			socket.on('message', function (message) { showMessage(message); });
+			socket.on('sys_message', function (msg) { showSysMsg(msg); });
+			$('#content').focus();
+		});
+		function send() {
+			var input = $('#content');
+			if (!input.val()) {
+				return;
+			}
+			socket.emit('message', {
+				'username' : user_id,
+				'content' : input.val()
+			});
+			input.focus();
+			input.val('');
+		}
+		///////////////////
 	});
 	</script>
   </body>
