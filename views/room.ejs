@@ -160,16 +160,14 @@ width: 15%;
 		update_user_list();
 		
 		///////////////////
-		var socket = io();
+		// var socket = io();
+		window.socket = io();
 		var last_sender = null;
 		var avatar_type = 'identicon';
 		function showMessage(message) {
-			var avatar_box = ( avatar_type == 'identicon' )? 
-				createIdenticonAvatar( message.username ) : createLetterAvatar( message.username );
-
+			var avatar_box = createIdenticonAvatar( message.username );
 			var who = ( $("#username").val() == message.username )? 'mine' : 'others';
 			var sender_visible = ( last_sender == message.username )? 'sender-hidden' : 'sender-show';
-
 
 			$('#chat').append(
 				$('<div class="message">').addClass(who).addClass(sender_visible)
@@ -184,9 +182,8 @@ width: 15%;
 			$("#chat")[0].scrollTop = $("#chat")[0].scrollHeight;
 			last_sender = message.username;
 		}
-
+		
 		function showSysMsg (msg) {
-
 			$('#chat').append(
 				$('<div class="message sys-info">')
 					.append( $('<div class="text-box">')
@@ -206,6 +203,14 @@ width: 15%;
 		// 	return text;
 		// }
 		
+		function createLetterAvatar( username ) {
+			var colorHash = new ColorHash({ lightness: 0.5, saturation: 0.7 });
+			var color = colorHash.hex( username );
+			var initial = username.charAt(0);
+			return $('<div class="avatar-box">')
+				.append( $('<div class="photo lavatar">').css('background', color).text(initial) );
+		}
+		
 		function createIdenticonAvatar( username ) {
 			var hash = CryptoJS.MD5(username).toString();
 			var img_data = new Identicon(hash, 50).toString();
@@ -216,6 +221,11 @@ width: 15%;
 		$(function () {
 			$("form").submit( function (e) { e.preventDefault(); });
 			$('#send-btn').click(function () { send(); });
+			socket.emit('join_room', { 
+				room_no: room_no
+			});
+			//debug!!
+			socket.on('tt', function(a){console.log(a)});
 			socket.on('message', function (message) { showMessage(message); });
 			socket.on('sys_message', function (msg) { showSysMsg(msg); });
 			$('#content').focus();
@@ -226,7 +236,7 @@ width: 15%;
 				return;
 			}
 			socket.emit('message', {
-				'username' : user_id,
+				// 'username' : user_id,
 				'content' : input.val()
 			});
 			input.focus();

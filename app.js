@@ -13,7 +13,8 @@ var express = require('express')
   , fs = require('fs')
   , path = require('path')
   , session = require('express-session')
-  , cookieParser = require('cookie-parser');
+  , cookieParser = require('cookie-parser')
+  , sharedsession = require("express-socket.io-session");
 
 // var app = express();
 var port = process.env.PORT || 3000;
@@ -52,7 +53,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser('MagicStrinG'));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({ 
+
+var sessionMiddleware = session({ 
 	secret: 'EineKleineNachtMusik',
 	resave: true, 
 	saveUninitialized: true,
@@ -60,7 +62,13 @@ app.use(session({
 		maxAge: 1000 * 60 * 60 * 12, //12시간
 		secure: false
 	} 
-}));
+});
+
+io.use(sharedsession(sessionMiddleware, {
+    autoSave: true
+})); 
+
+app.use(sessionMiddleware);
 app.set('port', port);
 
 mongoose.connect(__dbHost);
@@ -72,7 +80,8 @@ db_conn.once('open', function() {
 });
 
 var routes_view = require('./routes/view')
-  , routes_ajax = require('./routes/ajax');
+  , routes_ajax = require('./routes/ajax')
+  , routes_sock = require('./routes/socket');
 
 app.get('/', sessChk(false), sessChk(true), routes_view.index);
 app.get('/login', sessChk(false), routes_view.login);
@@ -91,20 +100,7 @@ app.get('/ajax/room_list', sessChk(true), routes_ajax.get_room_list);
 app.get('/ajax/joined_user_list', sessChk(true), routes_ajax.get_joined_user_list);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
-var num_user = 0;
-io.on('connection', function(socket) {
-	console.log('a user connected');
-	num_user++;
-	io.emit('sys_message', '유저 한명이 새로 접속했습니다. 유저수:' + num_user);
-	socket.on('disconnect', function() {
-		num_user--;
-		io.emit('sys_message', '유저 한명이 퇴장했습니다. 유저수:' + num_user);
-		console.log('user disconnected');
-	});
-	socket.on('message', function(msg){
-		io.emit('message', msg);
-	});
-});
+routes_sock.init_io(io);
 
 server.listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));

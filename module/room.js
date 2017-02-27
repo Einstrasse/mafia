@@ -18,5 +18,33 @@ module.exports = {
 		}, function(err) {
 			callback(err, room_number);
 		});
+	},
+	leave_room: function(options, callback) {
+		var room_number = options.room_number;
+		var user_id = options.user_id;
+		async.waterfall([
+			cb => {
+				db.room.update({
+					No: room_number
+				}, {
+					$pull: {
+						joined_users: user_id
+					}
+				}, function(err) {
+					cb(err);
+				});
+			},
+			cb => {
+				db.room.findOne({
+					No: room_number
+				}, {
+					joined_users: 1
+				}, function(err, data) {
+					cb(err, data);
+				});
+			}
+		], function(err, result) {
+			callback(err, result);
+		});
 	}
 };
