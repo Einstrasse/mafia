@@ -7,4 +7,4 @@ var schema = mongoose.Schema({
 
 var user = mongoose.model('user', schema);
 
-exports.user = user;
+module.exports = user;

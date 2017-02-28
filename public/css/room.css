@@ -129,6 +129,14 @@ html, body {
 	font-weight: 400;
 }
 
+.sys-info.user_change span {
+	background: #6FD7FF;
+}
+
+.sys-info.error_message span {
+	background: #f4a936;
+}
+
 .sys-info .text-box {
 	margin: 0;
 }

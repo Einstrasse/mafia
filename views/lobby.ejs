@@ -96,7 +96,7 @@
 						room_limit_num: room_limit_num
 					}, function(res) {
 						if (res && res.result) {
-							var room_no = res.room_number;
+							var room_no = res.room_no;
 							alert('방 생성 성공');
 							location.href = '/room?no=' + room_no;
 						} else {

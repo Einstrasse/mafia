@@ -1,7 +1,7 @@
 var async = require('async');
 var db = {
-	user: require(__path + 'module/db/user').user,
-	room: require(__path + 'module/db/room').room
+	user: require(__path + 'module/db/user'),
+	room: require(__path + 'module/db/room')
 };
 var mod_room = require(__path + 'module/room');
 
@@ -185,9 +185,9 @@ exports.create_room = function(req, res) {
 				}
 			});
 		},
-		(room_number, cb) => {
+		(room_no, cb) => {
 			var snapshot = new db.room({
-				No: room_number,
+				No: room_no,
 				name: "'" + req.session.name + '"의 게임방',
 				leader_id: req.session.user_id,
 				max_seat: room_limit_num,
@@ -199,25 +199,25 @@ exports.create_room = function(req, res) {
 					consoloe.log('db save err:', err);
 					cb('db 저장 에러');
 				} else {
-					cb(null, room_number);
+					cb(null, room_no);
 				}
 			});
 		},
-		(room_number, cb) => {
+		(room_no, cb) => {
 			mod_room.join_room({
-				room_number: room_number,
+				room_no: room_no,
 				user_id: req.session.user_id
-			}, function(err, room_number) {
+			}, function(err, room_no) {
 				if (err) {
 					console.log('db update err:', err);
 					cb('방 참가 에러');
 				} else {
-					cb(null, room_number);
+					cb(null, room_no);
 				}
 			});
 			/*
 			db.room.update({
-				No: room_number,
+				No: room_no,
 				leader_id: req.session.user_id
 			}, {
 				$addToSet: {
@@ -228,12 +228,12 @@ exports.create_room = function(req, res) {
 					console.log('db update err:', err);
 					cb('방 참가 에러');
 				} else {
-					cb(null, room_number);
+					cb(null, room_no);
 				}
 			});
 			*/
 		}
-	], function(err, room_number) {
+	], function(err, room_no) {
 		if (err) {
 			console.log('ajax.js:create_room/', err);
 			res.json({
@@ -242,7 +242,7 @@ exports.create_room = function(req, res) {
 		} else {
 			res.json({
 				result: true,
-				room_number: room_number
+				room_no: room_no
 			});
 		}
 	});

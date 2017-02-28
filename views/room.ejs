@@ -55,6 +55,9 @@ width: 15%;
 	.profile span {
 		font-weight: bold;
 	}
+	.profile label {
+		vertical-align: middle;
+	}
 </style>
 </head>
 <body>
@@ -71,25 +74,16 @@ width: 15%;
 			</div>
 		</li>
 		<li><a class="subheader">상태 관리</a></li>
-		<li><a href="/ajax/logout"><i class="material-icons">replay</i>방 나가기</a></li>
+		<li><a href="/lobby"><i class="material-icons">replay</i>방 나가기</a></li>
 		<li><div class="divider"></div></li>
-		<li><a class="subheader">게임 하기</a></li>
-		<li><a class="waves-effect"><i class="material-icons">play</i>게임 시작</a></li>
+		<% if (is_room_leader) { %>
+		<li><a class="subheader">방장 매뉴</a></li>
+		<li class="game_launch"><a class="waves-effect" href="#game-start-modal"><i class="material-icons">play_arrow</i>게임 시작</a></li>
+		<li class="game_proceed"><a class="waves-effect"><i class="material-icons">fast_forward</i>게임 진행</a></li>
+		<% } %>
 		<li><a class="subheader user-list-header">참가자 리스트 (<span id="member_number">#</span>/999)</a></li>
 		<li class="profile"><img class="circle profile-sm" src="images/yuna.jpg"> <span>정한길</span></li>
 	</ul>
-	
-<!-- 	
-	<ul id="tabs-swipe-demo" class="tabs">
-		<li class="tab col s3"><a href="#test-swipe-1">Test 1</a></li>
-		<li class="tab col s3"><a class="active" href="#test-swipe-2">Test 2</a></li>
-		<li class="tab col s3"><a href="#test-swipe-3">Test 3</a></li>
-	</ul>
-	<div id="test-swipe-1" class="col s12 blue">Test 1</div>
-	<div id="test-swipe-2" class="col s12 red">Test 2</div>
-	<div id="test-swipe-3" class="col s12 green">Test 3</div>
-	 -->
-	
 	
 	<div id="container">
 
@@ -110,140 +104,32 @@ width: 15%;
 			</div>
 		</div>
 	</div>
+	
+	<!-- Modal Structure -->
+	<div id="game-start-modal" class="modal">
+		<div class="modal-content">
+			<h4>직업 수 정하기</h4>
+			<p>
+				아래 스크롤을 끌어서 직업 별 인원수를 정해주세요.
+			</p>
+				<p class="range-field">
+					마피아<input type="range" id="mafia_num" min="1" max="5" value="2" />
+					경찰<input type="range" id="police_num" min="0" max="5" value="1" />
+					의사<input type="range" id="doctor_num" min="0" max="5" value="1" />
+				</p>
+			<!-- </form> -->
+		</div>
+		<div class="modal-footer">
+			<div id="game_start" class="modal-action modal-close waves-effect waves-green btn-flat">게임 시작</div>
+			<div class="modal-action modal-close waves-effect waves-green btn-flat">취소</div>
+		</div>
+	</div>
+	<!-- Modal Structure End -->
 
 	<script>
-	$(document).ready(function(){
 		var room_no = <%= room_no %>;
 		var user_id = "<%= user_id %>";
-		$('ul.tabs').tabs({
-			swipeable: true,
-			responsiveThreshold: 400
-		});
-		
-		$('.button-collapse').sideNav({
-			menuWidth: 300, // Default is 300
-			edge: 'left', // Choose the horizontal origin
-			closeOnClick: true, // Closes side-nav on <a> clicks, useful for Angular/Meteor
-			draggable: true // Choose whether you can drag to open on touch screens
-		});
-		
-		var update_user_list = function() {
-			$.get('/ajax/joined_user_list', {
-				no: room_no
-			}, function(res) {
-				var html = '';
-				
-				if (res.error) {
-					alert(res.error);
-				} else if (res.result) {
-					var user_list = res.data;
-					$('.profile').remove();
-					$('#member_number').text(user_list.length.toString());
-					
-					user_list.map(function(user_id) {
-						if (user_id) {
-							var name = user_id.split('(').shift();
-							var hash = CryptoJS.MD5(user_id).toString();
-							var img_data = new Identicon(hash, 50).toString();
-							html += ['<li class="profile">',
-								'<img class="circle profile-sm" src="data:image/png;base64,',
-									img_data,
-								'" data-user_id="' + user_id + '">',
-							 '<span>' + name + '</span></li>'
-							].join('');
-						}
-					});
-					$('.user-list-header').after($(html));
-				}
-			});
-		};
-		update_user_list();
-		
-		///////////////////
-		// var socket = io();
-		window.socket = io();
-		var last_sender = null;
-		var avatar_type = 'identicon';
-		function showMessage(message) {
-			var avatar_box = createIdenticonAvatar( message.username );
-			var who = ( $("#username").val() == message.username )? 'mine' : 'others';
-			var sender_visible = ( last_sender == message.username )? 'sender-hidden' : 'sender-show';
-
-			$('#chat').append(
-				$('<div class="message">').addClass(who).addClass(sender_visible)
-					.append( avatar_box )
-					.append( $('<div class="text-box">')
-						.append( $('<div class="username-box">' ).text( message.username ) )
-						.append( $('<div class="content-box">')
-							.append($('<span>').text(message.content))
-						)
-					)
-			);
-			$("#chat")[0].scrollTop = $("#chat")[0].scrollHeight;
-			last_sender = message.username;
-		}
-		
-		function showSysMsg (msg) {
-			$('#chat').append(
-				$('<div class="message sys-info">')
-					.append( $('<div class="text-box">')
-						.append ( $('<div class="content-box">')
-							.append($('<span>').text(msg))
-					)
-				)
-			);
-			$("#chat")[0].scrollTop = $("#chat")[0].scrollHeight;
-			last_sender = 'system_notice';	
-		}
-		// function randomUsername() {
-		// 	var text = "";
-		// 	var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-		// 	for (var i = 0; i < 5; i++)
-		// 		text += possible.charAt(Math.floor(Math.random() * possible.length));
-		// 	return text;
-		// }
-		
-		function createLetterAvatar( username ) {
-			var colorHash = new ColorHash({ lightness: 0.5, saturation: 0.7 });
-			var color = colorHash.hex( username );
-			var initial = username.charAt(0);
-			return $('<div class="avatar-box">')
-				.append( $('<div class="photo lavatar">').css('background', color).text(initial) );
-		}
-		
-		function createIdenticonAvatar( username ) {
-			var hash = CryptoJS.MD5(username).toString();
-			var img_data = new Identicon(hash, 50).toString();
-			return $('<div class="avatar-box">')
-				.append( $('<img class="photo">').attr('src', "data:image/png;base64," + img_data) );
-		}
-
-		$(function () {
-			$("form").submit( function (e) { e.preventDefault(); });
-			$('#send-btn').click(function () { send(); });
-			socket.emit('join_room', { 
-				room_no: room_no
-			});
-			//debug!!
-			socket.on('tt', function(a){console.log(a)});
-			socket.on('message', function (message) { showMessage(message); });
-			socket.on('sys_message', function (msg) { showSysMsg(msg); });
-			$('#content').focus();
-		});
-		function send() {
-			var input = $('#content');
-			if (!input.val()) {
-				return;
-			}
-			socket.emit('message', {
-				// 'username' : user_id,
-				'content' : input.val()
-			});
-			input.focus();
-			input.val('');
-		}
-		///////////////////
-	});
 	</script>
+	<script src="/js/room.js"></script>
   </body>
 </html>

@@ -101,6 +101,7 @@ app.get('/ajax/joined_user_list', sessChk(true), routes_ajax.get_joined_user_lis
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
 routes_sock.init_io(io);
+global.__io = io;
 
 server.listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));
