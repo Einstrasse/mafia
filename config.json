@@ -2,5 +2,6 @@
 	"__accessToken": "3124",
 	"__dbHost": "mongodb://localhost/mafia",
 	"__roomLeftOnDisconnect": true,
-	"__nightLength": 15
+	"__nightLength": 15,
+	"__voteLength": 15
 }

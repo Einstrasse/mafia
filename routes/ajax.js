@@ -314,7 +314,7 @@ exports.get_joined_user_list = function(req, res) {
 };
 
 exports.vote = function(req, res) {
-
+	//투표 혹은 지목 받는 API
 	var room_no = req.session.room_no;
 	var user_id = req.session.user_id;
 	var game_id = req.session.game_id;
@@ -344,6 +344,7 @@ exports.vote = function(req, res) {
 			var day_number = data.day_number;
 
 			if (time === 'Night') {
+				//직업별로 지목 받음
 				db.gamer.findOne({
 					game_id: game_id,
 					room_no: room_no,
@@ -380,6 +381,7 @@ exports.vote = function(req, res) {
 					}
 				});
 			} else if (time === 'Vote') {
+				//낮에 처형할 인원 투표 받음
 				db.gamer.findOne({
 					game_id: game_id,
 					room_no: room_no,
@@ -428,9 +430,12 @@ exports.vote = function(req, res) {
 };
 
 exports.game_proceed = function(req, res) {
+	// 방장이 낮에 투표 진행하는 API
 	var room_no = req.session.room_no;
 	var game_id = req.session.game_id;
 	var user_id = req.session.user_id;
+	var target_id;
+	var day_number;
 	
 	async.waterfall([
 		cb => {
@@ -459,6 +464,7 @@ exports.game_proceed = function(req, res) {
 				if (err) {
 					cb(err);
 				} else if(game_data) {
+					day_number = game_data.day_number;
 					var time = game_data.time;
 					if (time === 'Day') {
 						db.game.update({
@@ -488,6 +494,64 @@ exports.game_proceed = function(req, res) {
 				msg: '투표가 시작되었습니다.<br />처형할 사람을 투표해 주세요'
 			});
 			console.log('여기서 타이머를 다시 돌립니다.');
+			set_timer({
+				sec: __voteLength,
+				room_no: room_no,
+				io: __io
+			}, cb);
+		},
+		cb => {
+			//투표로 처형할 사람 여기서 판단함
+			db.vote_log.aggregate([
+				{
+					$match: {
+						game_id: game_id,
+						room_no: room_no,
+						day_number: day_number,
+						time: 'Vote'
+					}
+				}, {
+					$group: {
+						_id: '$target',
+						count: {
+							$sum: 1
+						}
+					}
+				},
+				{
+					$project: {
+						_id: 0,
+						target: "$_id",
+						count: 1
+					}
+				}, { 
+					$sort: {
+						count: -1
+				}
+			}], function(err, result) {
+				if (err) {
+					cb(err);
+				} else {
+					//result = [ { count: 5, target: 'user_id'}] 식으로 큰 순으로 정렬되어 나타남.
+					var target = '';
+					if (result.length === 1) {
+						target = result[0].target;
+					} else if (result.length >= 2) {
+						if (result[0].target !== result[1].target) {
+							target = result[0].target;
+						}
+					}
+					target_id = target;
+					cb(null);
+				}
+			});
+		},
+		cb => {
+			if (target_id) {
+				//투표로 처형할 사람이 있는 경우 최후의 반론 이후 찬반 투표를 함
+			} else {
+				//처형할 사람이 없으므로 바로 밤으로 넘어감
+			}
 		}
 	], function(err, result) {
 		if (err) {
