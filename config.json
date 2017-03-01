@@ -1,4 +1,6 @@
 {
 	"__accessToken": "3124",
-	"__dbHost": "mongodb://localhost/mafia"
+	"__dbHost": "mongodb://localhost/mafia",
+	"__roomLeftOnDisconnect": true,
+	"__nightLength": 15
 }

@@ -77,6 +77,42 @@ $(document).ready(function(){
 		socket.on('connect', function() {
 			console.log('재연결되었습니다.');
 		});
+		
+		$(document).on('click', 'input[name="playlist"]:enabled', function() {
+			console.log('!!!!!!1')
+			var id = $(this).attr('id');
+			var base64_decode = atob(id);
+			var raw_str = decodeURIComponent(base64_decode);
+			socket.emit('vote', {
+				target_id: raw_str
+			});
+		});
+		socket.on('change_target', function(msg) {
+			var target_id = msg.target_id;
+			var id = btoa(encodeURIComponent(target_id));
+			$('#' + id).prop('checked', true);
+		});
+	};
+	
+	var disable_radios = function() {
+		$('input[name="playlist"]').prop('disabled', true);	
+	};
+	
+	var enable_radios = function() {
+		$('input[name="playlist"]').prop('disabled', false);
+	};
+	
+	var uncheck_radios = function() {
+		$('input[name="playlist"]').prop('checked', false);
+	};
+	
+	var get_checked_radio = function() {
+		var $dom = $('input[name="playlist"]:checked');
+		var id = $dom.attr('id');
+		var base64_decode = atob(id);
+		var raw_str = decodeURIComponent(base64_decode);
+		
+		return raw_str;
 	};
 	
 	init_widget();
@@ -154,9 +190,38 @@ $(document).ready(function(){
 		socket.on('message', function (message) { showMessage(message); });
 		socket.on('sys_message', function (msg) { 
 			showSysMsg(msg.msg, msg.type);
+			if (msg.set_time) {
+				time = msg.set_time;
+			}
 			if (msg.type === 'user_change') {
 				update_user_list();
+			} else if (msg.type === 'game_status_change') {
+				socket.emit('game_status_change', {
+					detail_type: msg.detail_type,
+					game_id: msg.game_id
+				});
+			} else if (msg.type === 'game_procedure') {
+				if (msg.detail_type === 'game_start') {
+					job = msg.job;
+					if (job === 'civilian') {
+						uncheck_radios();
+						disable_radios();
+					} else {
+						uncheck_radios();
+						enable_radios();
+					}
+				}
 			}
+		});
+		socket.on('timer', function(msg) {
+			var left_sec = msg.left_sec;
+			var min = parseInt(left_sec / 60, 10);
+			var sec = left_sec % 60;
+			if (sec.toString().length === 1) {
+				sec = '0' + sec;
+			}
+			
+			$('.timer').text(min + ':' + sec);
 		});
 		
 	});

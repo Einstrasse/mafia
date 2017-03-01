@@ -58,6 +58,10 @@ width: 15%;
 	.profile label {
 		vertical-align: middle;
 	}
+	#header .timer {
+		position: relative;
+		top: -6px;
+	}
 </style>
 </head>
 <body>
@@ -88,8 +92,9 @@ width: 15%;
 	<div id="container">
 
 		<div id="header">
-			<i class="material-icons" style="padding:5px;">schedule</i>
 			<i class="material-icons button-collapse" data-activates="slide-out" style="padding:5px;">menu</i>
+			<i class="material-icons" style="padding:5px;">schedule</i>
+			<span class="timer">-</span>
 			
 		</div>
 
@@ -129,6 +134,8 @@ width: 15%;
 	<script>
 		var room_no = <%= room_no %>;
 		var user_id = "<%= user_id %>";
+		var job = '';
+		var time = ''; //day or night
 	</script>
 	<script src="/js/room.js"></script>
   </body>
