@@ -1,7 +1,8 @@
 var async = require('async');
 var db = {
 	user: require(__path + 'module/db/user'),
-	room: require(__path + 'module/db/room')
+	room: require(__path + 'module/db/room'),
+	game: require(__path + 'module/db/game')
 };
 var mod_room = require(__path + 'module/room');
 
@@ -305,6 +306,80 @@ exports.get_joined_user_list = function(req, res) {
 			res.json({
 				result: true,
 				data: joined_user
+			});
+		}
+	});
+};
+
+exports.game_proceed = function(req, res) {
+	var room_no = req.session.room_no;
+	var game_id = req.session.game_id;
+	var user_id = req.session.user_id;
+	
+	async.waterfall([
+		cb => {
+			if (!game_id) {
+				return cb('게임중이 아닙니다.');
+			}
+			
+			mod_room.is_room_leader({
+				room_no: room_no,
+				user_id: user_id
+			}, function(err, is_leader) {
+				if (err) {
+					cb(err);
+				} else if (is_leader) {
+					cb(null);
+				} else {
+					cb('방장이 아닙니다.');
+				}
+			});
+		},
+		cb => {
+			db.game.findOne({
+				game_id: game_id,
+				room_no: room_no
+			}, function(err, game_data) {
+				if (err) {
+					cb(err);
+				} else if(game_data) {
+					var time = game_data.time;
+					if (time === 'Day') {
+						db.game.update({
+							room_no: room_no,
+							game_id: game_id
+						}, {
+							$set: {
+								time: 'Vote'
+							}
+						}, function(err) {
+							cb(err);
+						});
+						
+					} else {
+						cb('낮만 진행할 수 있습니다.');
+					}
+				} else {
+					cb('게임을 찾을 수 없습니다.');
+				}
+			});
+		},
+		cb => {
+			__io.to(room_no.toString()).emit('sys_message', {
+				type: 'game_procedure',
+				detail_type: 'vote',
+				set_time: 'vote',
+				msg: '투표가 시작되었습니다.<br />처형할 사람을 투표해 주세요'
+			});
+		}
+	], function(err, result) {
+		if (err) {
+			res.json({
+				error: err
+			});
+		} else {
+			res.json({
+				result: true
 			});
 		}
 	});

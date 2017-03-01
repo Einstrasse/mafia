@@ -175,6 +175,20 @@ module.exports = {
 				
 				async.waterfall([
 					cb => {
+						db.game.find({
+							room_no: room_no,
+							is_finished: false
+						}, function(err, game) {
+							if (err) {
+								cb(err);
+							} else if (game) {
+								cb('이미 게임이 진행중입니다.');
+							} else {
+								cb(null);
+							}
+						});
+					}
+					cb => {
 						mod_room.is_room_leader({
 							room_no: room_no,
 							user_id: user_id
@@ -429,7 +443,10 @@ console.log(err, is_room_leader);
 												msg: police_msg
 											});
 											io.to(room_no.toString()).emit('sys_message', {
-												msg: msg
+												set_time: 'day',
+												msg: msg,
+												type: 'game_procedure',
+												detail_type: 'day'
 											});
 										});
 									});
@@ -497,11 +514,31 @@ console.log(err, is_room_leader);
 										target_id: target_id
 									});
 								}
+								cb(err);
+							});
+						} else if (time === 'Vote') {
+							db.vote_log.findOneAndUpdate({
+								game_id: game_id,
+								room_no: room_no,
+								day_number: day_number,
+								time: time,
+								voter: user_id
+							}, {
+								target: target_id
+							}, {
+								upsert: true
+							}, function(err, result) {
+								io.to(room_no.toString()).emit('sys_message', {
+									msg: target_id + ' 1표!'
+								});
+								cb(err);
 							});
 						}
 					}
 				], function(err, result) {
-					
+					if (err) {
+						console.log('투표 실패:', err);
+					}
 				});
 			});
 			

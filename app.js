@@ -98,6 +98,7 @@ app.all('/ajax/logout', sessChk(true), routes_ajax.logout);
 app.post('/ajax/create_room', sessChk(true), routes_ajax.create_room);
 app.get('/ajax/room_list', sessChk(true), routes_ajax.get_room_list);
 app.get('/ajax/joined_user_list', sessChk(true), routes_ajax.get_joined_user_list);
+app.get('/ajax/game_proceed', sessChk(true), routes_ajax.game_proceed);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 
 routes_sock.init_io(io);

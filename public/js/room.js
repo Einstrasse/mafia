@@ -59,41 +59,6 @@ $(document).ready(function(){
 		});
 	};
 	
-	var init_evt = function() {
-		$('#game_start').click(function() {
-			var mafia = $('#mafia_num').val();
-			var police = $('#police_num').val();
-			var doctor = $('#doctor_num').val();
-			console.log('gogosing', mafia, police, doctor);
-			socket.emit('game_start', {
-				mafia: mafia,
-				police: police,
-				doctor: doctor
-			});
-		});
-		socket.on('disconnect', function() {
-			console.log('연결이 끊겼습니다.');
-		});
-		socket.on('connect', function() {
-			console.log('재연결되었습니다.');
-		});
-		
-		$(document).on('click', 'input[name="playlist"]:enabled', function() {
-			console.log('!!!!!!1')
-			var id = $(this).attr('id');
-			var base64_decode = atob(id);
-			var raw_str = decodeURIComponent(base64_decode);
-			socket.emit('vote', {
-				target_id: raw_str
-			});
-		});
-		socket.on('change_target', function(msg) {
-			var target_id = msg.target_id;
-			var id = btoa(encodeURIComponent(target_id));
-			$('#' + id).prop('checked', true);
-		});
-	};
-	
 	var disable_radios = function() {
 		$('input[name="playlist"]').prop('disabled', true);	
 	};
@@ -114,6 +79,54 @@ $(document).ready(function(){
 		
 		return raw_str;
 	};
+	
+	var init_evt = function() {
+		$('#game_start').click(function() {
+			var mafia = $('#mafia_num').val();
+			var police = $('#police_num').val();
+			var doctor = $('#doctor_num').val();
+			console.log('gogosing', mafia, police, doctor);
+			socket.emit('game_start', {
+				mafia: mafia,
+				police: police,
+				doctor: doctor
+			});
+		});
+		$('.game_proceed').click(function() {
+			$.get('/ajax/game_proceed', function(res) {
+				if (res && res.error) {
+					alert(res.error);
+					console.log(res.error);
+				}
+			});
+		});
+		
+		socket.on('disconnect', function() {
+			console.log('연결이 끊겼습니다.');
+		});
+		socket.on('connect', function() {
+			console.log('재연결되었습니다.');
+		});
+		
+		$(document).on('click', 'input[name="playlist"]:enabled', function() {
+			var id = $(this).attr('id');
+			var base64_decode = atob(id);
+			var raw_str = decodeURIComponent(base64_decode);
+			socket.emit('vote', {
+				target_id: raw_str
+			});
+			if (time === 'vote') {
+				disable_radios();
+			}
+		});
+		socket.on('change_target', function(msg) {
+			var target_id = msg.target_id;
+			var id = btoa(encodeURIComponent(target_id));
+			$('#' + id).prop('checked', true);
+		});
+	};
+	
+	
 	
 	init_widget();
 	init_evt();
@@ -201,7 +214,7 @@ $(document).ready(function(){
 					game_id: msg.game_id
 				});
 			} else if (msg.type === 'game_procedure') {
-				if (msg.detail_type === 'game_start') {
+				if (msg.detail_type === 'game_start' || msg.detail_type === 'night') {
 					job = msg.job;
 					if (job === 'civilian') {
 						uncheck_radios();
@@ -210,6 +223,12 @@ $(document).ready(function(){
 						uncheck_radios();
 						enable_radios();
 					}
+				} else if (msg.detail_type === 'day') {
+					disable_radios();
+					uncheck_radios();
+				} else if (msg.detail_type === 'vote') {
+					enable_radios();
+					uncheck_radios();
 				}
 			}
 		});

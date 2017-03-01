@@ -5,7 +5,7 @@ var schema = mongoose.Schema({
 	room_no: Number,
 	is_finished: Boolean,
 	day_number: Number,
-	time: String, //Day or Night
+	time: String, //'Night' -> 'Day' -> 'Vote' -> 'Final' -> 'Night'
 	joined_users: [String]
 });
 
