@@ -112,12 +112,28 @@ $(document).ready(function(){
 			var id = $(this).attr('id');
 			var base64_decode = atob(id);
 			var raw_str = decodeURIComponent(base64_decode);
+			
+			if (time === 'vote') {
+				disable_radios();
+			}
+			$.get('/ajax/vote', {
+				target_id: raw_str
+			}, function(res) {
+				if (res && res.result) {
+				} else {
+					alert(res.error);
+					enable_radios();
+					uncheck_radios();
+				}
+			});
+			/*
 			socket.emit('vote', {
 				target_id: raw_str
 			});
 			if (time === 'vote') {
 				disable_radios();
 			}
+			*/
 		});
 		socket.on('change_target', function(msg) {
 			var target_id = msg.target_id;

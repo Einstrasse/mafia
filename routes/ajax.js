@@ -2,7 +2,9 @@ var async = require('async');
 var db = {
 	user: require(__path + 'module/db/user'),
 	room: require(__path + 'module/db/room'),
-	game: require(__path + 'module/db/game')
+	game: require(__path + 'module/db/game'),
+	gamer: require(__path + 'module/db/gamer'),
+	vote_log: require(__path + 'module/db/vote_log')
 };
 var mod_room = require(__path + 'module/room');
 
@@ -311,6 +313,120 @@ exports.get_joined_user_list = function(req, res) {
 	});
 };
 
+exports.vote = function(req, res) {
+
+	var room_no = req.session.room_no;
+	var user_id = req.session.user_id;
+	var game_id = req.session.game_id;
+	var job = req.session.job;
+	var target_id = req.query.target_id;
+	async.waterfall([
+		cb => {
+			db.game.findOne({
+				game_id: game_id,
+				room_no: room_no,
+				is_finished: false
+			}, {
+				day_number: 1,
+				time: 1
+			}, function(err, data) {
+				if (err) {
+					cb(err);
+				} else if (!data) {
+					cb('cannot find game');
+				} else {
+					cb(null, data);
+				}
+			});
+		},
+		(data, cb) => {
+			var time = data.time; //Day or Night
+			var day_number = data.day_number;
+
+			if (time === 'Night') {
+				db.gamer.findOne({
+					game_id: game_id,
+					room_no: room_no,
+					user_id: target_id,
+					alive: true
+				}, function(err, gamer) {
+					if (err) {
+						cb(err);
+					} else if (gamer) {
+						db.vote_log.findOneAndUpdate({
+							game_id: game_id,
+							room_no: room_no,
+							day_number: day_number,
+							time: time,
+							voter: job
+						}, {
+							target: target_id
+						}, {
+							upsert: true
+						}, function(err, result) {
+							if (job === 'mafia') {
+								__io.to(room_no + '_mafia').emit('change_target', {
+									target_id: target_id
+								});
+							} else if (job === 'police') {
+								__io.to(room_no + '_police').emit('change_target', {
+									target_id: target_id
+								});
+							}
+							cb(err);
+						});
+					} else {
+						cb('사망한 사람을 지목할 수 없습니다.');
+					}
+				});
+			} else if (time === 'Vote') {
+				db.gamer.findOne({
+					game_id: game_id,
+					room_no: room_no,
+					user_id: target_id,
+					alive: true
+				}, function(err, gamer) {
+					if (err) {
+						cb(err);
+					} else if (gamer) {
+						db.vote_log.findOneAndUpdate({
+							game_id: game_id,
+							room_no: room_no,
+							day_number: day_number,
+							time: time,
+							voter: user_id
+						}, {
+							target: target_id
+						}, {
+							upsert: true
+						}, function(err, result) {
+							cb(err);
+							__io.to(room_no.toString()).emit('sys_message', {
+								msg: target_id + ' 1표!'
+							});
+						});
+					} else {
+						cb('사망한 사용자에게는 투표할 수 없습니다.');
+					}
+				});
+				
+			}
+		}
+	], function(err, result) {
+		if (err) {
+			console.log('투표 실패:', err);
+			res.json({
+				result: false,
+				error: err
+			});
+		} else {
+			res.json({
+				result: true
+			});
+		}
+	});
+};
+
 exports.game_proceed = function(req, res) {
 	var room_no = req.session.room_no;
 	var game_id = req.session.game_id;
@@ -371,6 +487,7 @@ exports.game_proceed = function(req, res) {
 				set_time: 'vote',
 				msg: '투표가 시작되었습니다.<br />처형할 사람을 투표해 주세요'
 			});
+			console.log('여기서 타이머를 다시 돌립니다.');
 		}
 	], function(err, result) {
 		if (err) {

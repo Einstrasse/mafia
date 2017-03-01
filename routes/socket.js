@@ -3,7 +3,6 @@ var db = {
 	room: require(__path + 'module/db/room'),
 	game: require(__path + 'module/db/game'),
 	gamer: require(__path + 'module/db/gamer'),
-	game_log: require(__path + 'module/db/game_log'),
 	vote_log: require(__path + 'module/db/vote_log')
 };
 
@@ -46,7 +45,7 @@ var job2kor_job = function(job) {
 	}
 };
 
-var set_timer = function(options, callback) {
+global.set_timer = function(options, callback) {
 	var sec = options.sec;
 	var room_no = options.room_no;
 	var io = options.io;
@@ -175,7 +174,7 @@ module.exports = {
 				
 				async.waterfall([
 					cb => {
-						db.game.find({
+						db.game.findOne({
 							room_no: room_no,
 							is_finished: false
 						}, function(err, game) {
@@ -187,7 +186,7 @@ module.exports = {
 								cb(null);
 							}
 						});
-					}
+					},
 					cb => {
 						mod_room.is_room_leader({
 							room_no: room_no,
@@ -235,22 +234,6 @@ module.exports = {
 							cb(err);
 						});
 					},
-					
-					// cb => {
-					// 	var snapshot = new db.game_log({
-					// 		game_id: game_id,
-					// 		room_no: room_no,
-					// 		is_finished: false,
-					// 		day_number: 1,
-					// 		time: 'Night', //Day or Night
-					// 		joined_users: joined_users,
-					// 		vote_result: {}
-					// 	});
-						
-					// 	snapshot.save(function(err) {
-					// 		cb(err);
-					// 	})
-					// },
 					cb => {
 						var lot_result = lottery(joined_users, {
 							mafia: mafia,
