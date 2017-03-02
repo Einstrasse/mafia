@@ -122,11 +122,27 @@ width: 15%;
 					경찰<input type="range" id="police_num" min="0" max="5" value="1" />
 					의사<input type="range" id="doctor_num" min="0" max="5" value="1" />
 				</p>
-			<!-- </form> -->
 		</div>
 		<div class="modal-footer">
 			<div id="game_start" class="modal-action modal-close waves-effect waves-green btn-flat">게임 시작</div>
 			<div class="modal-action modal-close waves-effect waves-green btn-flat">취소</div>
+		</div>
+	</div>
+	<!-- Modal Structure End -->
+	
+	<!-- Modal Structure -->
+	<div id="final-vote-modal" class="modal">
+		<div class="modal-content">
+			<h4>최종 처형 결정 찬반투표</h4>
+			<p id="final-vote-content">
+				message
+			</p>
+				
+		</div>
+		<div class="modal-footer">
+			<div class="modal-action modal-close waves-effect waves-green btn-flat final-vote" value="true">찬성</div>
+			<div class="modal-action modal-close waves-effect waves-green btn-flat final-vote" value="false">반대</div>
+			<div class="modal-action modal-close waves-effect waves-green btn-flat">기권</div>
 		</div>
 	</div>
 	<!-- Modal Structure End -->
@@ -136,6 +152,7 @@ width: 15%;
 		var user_id = "<%= user_id %>";
 		var job = '';
 		var time = ''; //day or night
+		var day_number = 0;
 	</script>
 	<script src="/js/room.js"></script>
   </body>

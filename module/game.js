@@ -8,6 +8,114 @@ var db = {
 };
 
 module.exports = {
+	self: this,
+	dump_all_job: function(options, callback) {
+		var room_no = options.room_no;
+		var game_id = options.game_id;
+		var msg = '';
+		db.gamer.find({
+			room_no: room_no,
+			game_id: game_id
+		}, {
+			job: 1,
+			user_id: 1
+		}, function(err, data) {
+			if (err) {
+				callback(err);
+			} else {
+				data.map(function(item) {
+					msg += item.user_id + ' : ' + job2kor_job(item.job) + '<br />';
+				});
+				callback(null, msg);
+			}
+		});
+	},
+	check_victory: function(options, callback) {
+		var room_no = options.room_no;
+		var game_id = options.game_id;
+		
+		db.gamer.aggregate([
+			{
+				$match: {
+					game_id: game_id,
+					room_no: room_no,
+					alive: true
+				}
+			}, {
+				$group: {
+					_id: '$is_mafia_team',
+					count: {
+						$sum: 1
+					}
+				}
+			}, 
+			{
+				$project: {
+					_id: 0,
+					is_mafia_team: "$_id",
+					count: 1
+				}
+			}, 
+			{
+				$sort: {
+					count: -1
+			}
+		}], function(err, result) {
+			// 생존자수 구하기
+			// result = [ { is_mafia_team: false, count: 2}, {is_mafia_team: true, count: 1}];
+			var fin_game = function() {
+				db.game.update({
+					room_no: room_no,
+					game_id: game_id
+				}, {
+					$set: {
+						is_finished: true
+					}
+				}, function(err) {
+					console.log('game finish error:', err);
+				});
+			};
+			if (err) {
+				callback(err);
+			} else {
+				if (result) {
+					if (result.length === 1) {
+						if (result[0].is_mafia_team) {
+							//마피아 승리
+							fin_game();
+							callback(null, {
+								finished: true,
+								winner: 'mafia'
+							});
+						} else {
+							//시민 승리
+							fin_game();
+							callback(null, {
+								finished: true,
+								winner: 'civilian'
+							});
+						}
+					} else {
+						if (result[0].count === result[1].count) {
+							//마피아 승리
+							fin_game();
+							callback(null, {
+								finished: true,
+								winner: 'mafia'
+							});
+						} else {
+							// 계속 진행
+							callback(null, {
+								finished: false
+							});
+						}
+					}
+				} else {
+					callback('aggregate error. cannot find data');
+				}
+			}
+		});
+	},
 	go_day: function(options, callback) {
 		var room_no = options.room_no;
 		var game_id = options.game_id;
@@ -132,6 +240,7 @@ module.exports = {
 				cb(null);
 			},
 			cb => {
+				__client.set(game_id, 'Day');
 				db.game.update({
 					game_id: game_id,
 					room_no: room_no,
@@ -162,7 +271,16 @@ module.exports = {
 						if (err) {
 							cb(err);
 						} else {
-							cb(null);
+							module.exports.check_victory({
+								room_no: room_no,
+								game_id: game_id
+							}, function(err, chk_vic_res) {
+								var game_finished = chk_vic_res.finished;
+								if (game_finished) {
+									response.winner = chk_vic_res.winner;
+								}
+								cb(err);	
+							});
 						}
 					});
 				} else {

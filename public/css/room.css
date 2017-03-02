@@ -93,6 +93,12 @@ html, body {
 .username-box {
 	margin: .6em .3em;
 }
+.dead_whisper .username-box {
+	color: rgba(0,0,0,0.5);
+}
+.dead_whisper img {
+	opacity: 0.5;
+}
 .photo {
 	object-fit: cover;
 	object-position: top;
@@ -121,6 +127,23 @@ html, body {
 	background: #fef01b;
 }
 
+.mine.dead_whisper span {
+	background: rgba(232, 255, 57, 0.29);
+	color: rgba(0,0,0,0.5);
+}
+
+.mine.police_whisper span {
+	background: #3babfd;
+}
+
+.mine.mafia_whisper span {
+	background: #ff8072;
+}
+
+.mine.final_defend span {
+	background: rgb(58, 250, 25);
+}
+
 .sys-info span {
 	background: #ddd;
 	width: 100%;
@@ -144,6 +167,24 @@ html, body {
 .others span {
 	background: #fff;
 }
+
+.others.dead_whisper span {
+	background: rgba(255, 255, 255, 0.29);
+	color: rgba(0,0,0,0.5);
+}
+
+.others.police_whisper span {
+	background: #54e6ff;
+}
+
+.others.mafia_whisper span {
+	background: #ffd454;
+}
+
+.others.final_defend span {
+	background: rgb(58, 250, 25);
+}
+
 .others .avatar-box {
 	float: left;
 }

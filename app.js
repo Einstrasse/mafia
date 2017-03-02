@@ -14,7 +14,9 @@ var express = require('express')
   , path = require('path')
   , session = require('express-session')
   , cookieParser = require('cookie-parser')
+  , redis = require('redis')
   , sharedsession = require("express-socket.io-session");
+
 
 // var app = express();
 var port = process.env.PORT || 3000;
@@ -22,6 +24,11 @@ var port = process.env.PORT || 3000;
 var global_json = JSON.parse(fs.readFileSync(__path + 'config.json'));
 Object.keys(global_json).map(function(key) {
 	global[key] = global_json[key];
+});
+
+global.__client = redis.createClient(__redisPort, __redisHost);
+__client.on('error', function (err) {
+    console.log('redis err:', err);
 });
 
 var sessChk = function(needSession) {
@@ -98,7 +105,7 @@ app.all('/ajax/logout', sessChk(true), routes_ajax.logout);
 app.post('/ajax/create_room', sessChk(true), routes_ajax.create_room);
 app.get('/ajax/room_list', sessChk(true), routes_ajax.get_room_list);
 app.get('/ajax/joined_user_list', sessChk(true), routes_ajax.get_joined_user_list);
-app.get('/ajax/game_proceed', sessChk(true), routes_ajax.game_proceed);
+// app.get('/ajax/game_proceed', sessChk(true), routes_ajax.game_proceed);
 app.get('/ajax/vote', sessChk(true), routes_ajax.vote);
 app.get('/ajax/sessChk', routes_ajax.sessChk);
 

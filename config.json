@@ -3,5 +3,9 @@
 	"__dbHost": "mongodb://localhost/mafia",
 	"__roomLeftOnDisconnect": true,
 	"__nightLength": 15,
-	"__voteLength": 15
+	"__voteLength": 15,
+	"__defendLength": 15,
+	"__finalLength": 15,
+	"__redisHost": "127.0.0.1",
+	"__redisPort": 6379
 }

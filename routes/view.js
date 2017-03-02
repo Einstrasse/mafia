@@ -1,5 +1,12 @@
 var async = require('async');
 var mod_room = require(__path + 'module/room');
+var db = {
+	user: require(__path + 'module/db/user'),
+	room: require(__path + 'module/db/room'),
+	gamer: require(__path + 'module/db/gamer'),
+	vote_log: require(__path + 'module/db/vote_log'),
+	game: require(__path + 'module/db/game'),
+};
 
 exports.index = function(req, res){
   res.render('index', { title: 'Express' });
@@ -62,6 +69,20 @@ exports.room = function(req, res) {
 				}
 			},
 			cb => {
+				db.game.findOne({
+					room_no: room_no,
+					is_finished: false
+				}, function(err, data) {
+					if (err) {
+						cb(err);
+					} else if (data) {
+						cb('이미 게임중인 방입니다.');
+					} else {
+						cb(null);
+					}
+				});
+			},
+			cb => {
 				mod_room.join_room({
 					room_no: room_no,
 					user_id: user_id
@@ -81,7 +102,7 @@ exports.room = function(req, res) {
 		], function(err) {
 			if (err) {
 				console.log('join room failed', err);
-				res.send('방 참가 실패');
+				res.send('방 참가 실패' + err);
 			} else {
 				res.render('room', {
 					name: req.session.name,

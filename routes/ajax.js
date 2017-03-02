@@ -320,7 +320,32 @@ exports.vote = function(req, res) {
 	var game_id = req.session.game_id;
 	var job = req.session.job;
 	var target_id = req.query.target_id;
+	var is_agree = req.query.is_agree;
+	
+	if (is_agree && is_agree == 'true') {
+		is_agree = true;
+	} else {
+		is_agree = false;
+	}
 	async.waterfall([
+		cb => {
+			db.gamer.findOne({
+				game_id: game_id,
+				room_no: room_no,
+				user_id: user_id,
+				alive: true
+			}, function(err, userdata) {
+				if (err) {
+					cb(err);
+				} else {
+					if (userdata) {
+						 cb(null);
+					} else {
+						cb('사망한 사람은 투표할 수 없습니다.');
+					}
+				}
+			});
+		},
 		cb => {
 			db.game.findOne({
 				game_id: game_id,
@@ -328,7 +353,8 @@ exports.vote = function(req, res) {
 				is_finished: false
 			}, {
 				day_number: 1,
-				time: 1
+				time: 1,
+				defender: 1
 			}, function(err, data) {
 				if (err) {
 					cb(err);
@@ -411,7 +437,27 @@ exports.vote = function(req, res) {
 						cb('사망한 사용자에게는 투표할 수 없습니다.');
 					}
 				});
+			} else if (time === 'Final') {
+				//최종 변론자 찬반 투표
+				var defender = data.defender;
 				
+				db.vote_log.findOneAndUpdate({
+					game_id: game_id,
+					room_no: room_no,
+					day_number: day_number,
+					time: time,
+					voter: user_id
+				}, {
+					target: defender,
+					is_agree: is_agree
+				}, {
+					upsert: true
+				}, function(err, result) {
+					cb(err);
+					__io.to(room_no.toString()).emit('sys_message', {
+						msg: defender + ' 처형 ' + (is_agree ? '찬성' : '반대') + ' 1표!'
+					});
+				});
 			}
 		}
 	], function(err, result) {
@@ -429,8 +475,9 @@ exports.vote = function(req, res) {
 	});
 };
 
+// 방장이 낮에 투표 진행하는 API
+/*
 exports.game_proceed = function(req, res) {
-	// 방장이 낮에 투표 진행하는 API
 	var room_no = req.session.room_no;
 	var game_id = req.session.game_id;
 	var user_id = req.session.user_id;
@@ -548,10 +595,167 @@ exports.game_proceed = function(req, res) {
 		},
 		cb => {
 			if (target_id) {
-				//투표로 처형할 사람이 있는 경우 최후의 반론 이후 찬반 투표를 함
+				db.game.update({
+					game_id: game_id,
+					room_no: room_no,
+					day_number: day_number,
+					time: 'Vote'
+				}, {
+					$set: {
+						time: 'Defend'
+					}
+				}, function(err) {
+					//투표로 처형할 사람이 있는 경우 최후의 반론 이후 찬반 투표를 함
+					__io.to(room_no.toString()).emit('sys_message', {
+						type: 'game_procedure',
+						detail_type: 'defend',
+						set_time: 'defend',
+						msg: target_id +'의 최후의 변론'
+					});
+					cb(err);
+				});
 			} else {
 				//처형할 사람이 없으므로 바로 밤으로 넘어감
+				cb(null);
 			}
+		},
+		cb => {
+			if (target_id) {
+				set_timer({
+					sec: __defendLength,
+					room_no: room_no,
+					io: __io
+				}, function() {
+					db.game.update({
+						game_id: game_id,
+						room_no: room_no,
+						day_number: day_number,
+						time: 'Defend'
+					}, {
+						$set: {
+							time: 'Final',
+							defender: target_id
+						}
+					}, function(err) {
+						if (err) {
+							cb(err);
+						} else {
+							__io.to(room_no.toString()).emit('sys_message', {
+								type: 'game_procedure',
+								detail_type: 'final',
+								set_time: 'final',
+								msg: target_id +'의 처형에 대한 최종 찬/반 투표'
+							});
+							set_timer({
+								sec: __finalLength,
+								room_no: room_no,
+								io: __io
+							}, function() {
+								cb(null);
+							});
+						}
+					});
+				});
+			} else {
+				//처형할 사람이 없어서 바로 밤으로 넘어감.
+				cb(null);
+			}
+		},
+		cb => {
+			if (target_id) {
+				//찬 반 투표의 결과 확인
+				db.vote_log.aggregate([
+					{
+						$match: {
+							game_id: game_id,
+							room_no: room_no,
+							day_number: day_number,
+							time: 'Final',
+							target: target_id
+						}
+					}, {
+						$group: {
+							_id: '$is_agree',
+							count: {
+								$sum: 1
+							}
+						}
+					},
+					{
+						$project: {
+							_id: 0,
+							is_agree: "$_id",
+							count: 1
+						}
+					}, { 
+						$sort: {
+							count: -1
+					}
+				}], function(err, result) {
+					if (err) {
+						cb(err);
+					} else {
+						// result = [{is_agree: true, count: 찬성숫자}, {is_agree: false, count: 반대숫자}];
+						var agree = false;
+						if (result.length === 1) {
+							agree = result[0].is_agree;
+						} else if (result.length >= 2) {
+							if (result[0].count !== result[1].count) {
+								agree = true;
+							}
+						}
+						
+						if (agree) {
+							//여기서 처형자를 죽이는 코드가 들어간다.
+							db.gamer.update({
+								room_no: room_no,
+								game_id: game_id,
+								user_id: target_id
+							}, {
+								$set: {
+									alive: false
+								}
+							}, function(err) {
+								cb(err);
+								__io.to(room_no.toString()).emit('sys_message', {
+									msg: target_id + '가 처형되었습니다.';
+								});
+							});
+						} else {
+							__io.to(room_no.toString()).emit('sys_message', {
+								msg: target_id + ' 처형이 기각되었습니다.';
+							});
+							cb(null);
+						}
+					}
+				});
+			} else {
+				//처형할 사람이 없는 경우
+				cb(null);
+			}
+		},
+		cb => {
+			//여기서 다시 밤으로 돌아가는 코드가 들어간다.
+			db.game.update({
+				room_no: room_no,
+				game_id: game_id,
+				day_number: day_number,
+				time: 'Final'
+			}, {
+				$set: {
+					day_number: day_number + 1,
+					time: 'Night'
+				}
+			}, function(err) {
+				__io.sockets.in(room_no.toString()).emit('sys_message', {
+					type: 'game_status_change',
+					detail_type: 'night',
+					set_time: 'night',
+					set_day: day_number,
+					msg: '밤이 되었습니다.'
+				});
+				cb(err)
+			});
 		}
 	], function(err, result) {
 		if (err) {
@@ -565,6 +769,7 @@ exports.game_proceed = function(req, res) {
 		}
 	});
 };
+*/
 
 exports.sessChk = function(req, res) {
 	console.log('session:', req.session);

@@ -33,7 +33,7 @@ var lottery = function(arr, nums) {
 	return ret;
 };
 
-var job2kor_job = function(job) {
+global.job2kor_job = function(job) {
 	if (job === 'mafia') {
 		return '마피아';
 	} else if (job === 'police') {
@@ -68,6 +68,14 @@ global.set_timer = function(options, callback) {
 module.exports = {
 	init_io: function(io) {
 		io.on('connection', function(socket) {
+			socket.on('notify_death', function() {
+				var room_no = socket.handshake.session.room_no;
+				if (room_no) {
+					socket.join(room_no + '_dead');
+				}
+				socket.handshake.session.is_dead = true;
+				socket.handshake.session.save();
+			});
 			socket.on('join_room', function(msg) {
 				var room_no = msg.room_no;
 				var user_id = socket.handshake.session.user_id;
@@ -154,12 +162,77 @@ module.exports = {
 			socket.on('message', function(msg){
 				var room_no = socket.handshake.session.room_no;
 				var user_id = socket.handshake.session.user_id;
+				var is_dead = socket.handshake.session.is_dead;
+				var game_id = socket.handshake.session.game_id || false;
+				var job = socket.handshake.session.job || false;
 				var content = msg.content;
 				if (room_no) {
-					io.sockets.in(room_no.toString()).emit('message', {
-						username: user_id,
-						content: content
-					});
+					if (game_id) {
+						//게임중일때
+						if (is_dead) {
+							io.to(room_no + '_dead').emit('message', {
+								username: user_id,
+								content: content,
+								message_type: 'dead_whisper'
+							});						
+						} else {
+							__client.get(game_id, function (err, time) {
+								if (err) throw(err)
+								//'Night' -> 'Day' -> 'Vote' -> 'Defend' -> 'Final' -> 'Night'
+								if (time === 'Night') {
+									//밤일 경우 마피아, 경찰만 이야기 할 수 있다
+									if (job === 'mafia') {
+										io.to(room_no + '_mafia').emit('message', {
+											username: user_id,
+											content: content,
+											message_type: 'mafia_whisper'
+										});
+									} else if (job === 'police') {
+										io.to(room_no + '_police').emit('message', {
+											username: user_id,
+											content: content,
+											message_type: 'police_whisper'
+										});
+									}
+								} else if (time === 'Defend') {
+									//최후의 변론에는 최후의 변론자만 이야기 할 수 있다.
+									db.game.findOne({
+										room_no: room_no,
+										game_id: game_id,
+										is_finished: false,
+										time: 'Defend'
+									}, {
+										defender: 1
+									}, function(err, result) {
+										if (err) {
+											console.log('cannot find game!');
+										} else {
+											if (result && result.defender && result.defender === user_id) {
+												io.sockets.in(room_no.toString()).emit('message', {
+													username: user_id,
+													content: content,
+													message_type: 'final_defend'
+												});
+											}
+										}
+									});
+								} else if (time === 'Day' || time === 'Vote' || time === 'Final') {
+									//낮과 투표하는 경우, 최종 찬반 투표는 모두 이야기 할 수 있다.
+									io.sockets.in(room_no.toString()).emit('message', {
+										username: user_id,
+										content: content
+									});
+								}
+								console.log(time)
+							});
+						}
+					} else {
+						//게임중이 아닐 때
+						io.sockets.in(room_no.toString()).emit('message', {
+							username: user_id,
+							content: content
+						});
+					}
 				}
 			});
 			
@@ -229,6 +302,7 @@ module.exports = {
 							time: 'Night',
 							joined_users: joined_users
 						});
+						__client.set(game_id, 'Night');
 						
 						snapshot.save(function(err) {
 							cb(err);
@@ -328,6 +402,7 @@ module.exports = {
 							type: 'game_status_change',
 							detail_type: 'game_start',
 							set_time: 'night',
+							set_day: 1,
 							game_id: game_id,
 							msg: '게임이 시작되었습니다.<br> 밤이 되었습니다.'
 						});
@@ -396,7 +471,6 @@ module.exports = {
 								room_no: room_no,
 								user_id: user_id
 							}, function(err, is_room_leader) {
-console.log(err, is_room_leader);
 								if (is_room_leader) {
 									set_timer({
 										room_no: room_no,
@@ -404,12 +478,10 @@ console.log(err, is_room_leader);
 										sec: __nightLength
 									}, function() {
 
-										console.log('이곳에 첫번째 밤이 끝난 뒤 낮이 되는 부분의 코드가 들어갑니다');
 										mod_game.go_day({
 											room_no: room_no,
 											game_id: game_id
 										}, function(err, result) {
-		console.log('@@@', err, result);
 											var victim_id = result.victim_id;
 											var police_msg = result.police_msg || '조사가 이루어지지 않았습니다.';
 											var revive = result.revive;
@@ -429,8 +501,33 @@ console.log(err, is_room_leader);
 												set_time: 'day',
 												msg: msg,
 												type: 'game_procedure',
-												detail_type: 'day'
+												detail_type: 'day',
+												victim_id: revive ? '' : victim_id
 											});
+											
+											if (result.winner) {
+console.log('flag 3 - result!!:', result);
+												mod_game.dump_all_job({
+													room_no: room_no,
+													game_id: game_id
+												}, function(err, msg) {
+													if (result.winner === 'mafia') {
+														msg += '마피아';
+													} else if (result.winner === 'civilian') {
+														msg += '시민';
+													} else {
+														msg += result.winner;
+													}
+													msg += '팀이 이겼습니다.';
+
+													io.to(room_no.toString()).emit('sys_message', {
+														type: 'game_status_change',
+														game_id: game_id,
+														detail_type: 'game_end',
+														msg: msg
+													});
+												});
+											}
 										});
 									});
 								}
@@ -439,6 +536,9 @@ console.log(err, is_room_leader);
 					});
 				} else if (msg.detail_type === 'game_end') {
 					delete socket.handshake.session.game_id;
+					delete socket.handshake.session.is_dead;
+					delete socket.handshake.session.job;
+					delete socket.handshake.session.kor_job;
 					socket.handshake.session.save();
 					socket.leave(room_no + '_mafia');
 					socket.leave(room_no + '_police');
@@ -521,6 +621,410 @@ console.log(err, is_room_leader);
 				], function(err, result) {
 					if (err) {
 						console.log('투표 실패:', err);
+					}
+				});
+			});
+			
+			//exports.game_proceed = function(req, res) {
+			socket.on('game_proceed', function() {
+				
+				var room_no = socket.handshake.session.room_no;
+				var game_id = socket.handshake.session.game_id;
+				var user_id = socket.handshake.session.user_id;
+				var target_id;
+				var day_number;
+
+				async.waterfall([
+					cb => {
+						if (!game_id) {
+							return cb('게임중이 아닙니다.');
+						}
+
+						mod_room.is_room_leader({
+							room_no: room_no,
+							user_id: user_id
+						}, function(err, is_leader) {
+							if (err) {
+								cb(err);
+							} else if (is_leader) {
+								cb(null);
+							} else {
+								cb('방장이 아닙니다.');
+							}
+						});
+					},
+					cb => {
+						db.game.findOne({
+							game_id: game_id,
+							room_no: room_no
+						}, function(err, game_data) {
+							if (err) {
+								cb(err);
+							} else if(game_data) {
+								day_number = game_data.day_number;
+								var time = game_data.time;
+								if (time === 'Day') {
+									__client.set(game_id, 'Vote');
+									db.game.update({
+										room_no: room_no,
+										game_id: game_id
+									}, {
+										$set: {
+											time: 'Vote'
+										}
+									}, function(err) {
+										cb(err);
+									});
+
+								} else {
+									cb('낮만 진행할 수 있습니다.');
+								}
+							} else {
+								cb('게임을 찾을 수 없습니다.');
+							}
+						});
+					},
+					cb => {
+						io.to(room_no.toString()).emit('sys_message', {
+							type: 'game_procedure',
+							detail_type: 'vote',
+							set_time: 'vote',
+							msg: '투표가 시작되었습니다.<br />처형할 사람을 투표해 주세요'
+						});
+						console.log('여기서 타이머를 다시 돌립니다.');
+						set_timer({
+							sec: __voteLength,
+							room_no: room_no,
+							io: io
+						}, cb);
+					},
+					cb => {
+						//투표로 처형할 사람 여기서 판단함
+						db.vote_log.aggregate([
+							{
+								$match: {
+									game_id: game_id,
+									room_no: room_no,
+									day_number: day_number,
+									time: 'Vote'
+								}
+							}, {
+								$group: {
+									_id: '$target',
+									count: {
+										$sum: 1
+									}
+								}
+							},
+							{
+								$project: {
+									_id: 0,
+									target: "$_id",
+									count: 1
+								}
+							}, { 
+								$sort: {
+									count: -1
+							}
+						}], function(err, result) {
+							if (err) {
+								cb(err);
+							} else {
+								//result = [ { count: 5, target: 'user_id'}] 식으로 큰 순으로 정렬되어 나타남.
+								var target = '';
+								if (result.length === 1) {
+									target = result[0].target;
+								} else if (result.length >= 2) {
+									if (result[0].target !== result[1].target) {
+										target = result[0].target;
+									}
+								}
+								target_id = target;
+								cb(null);
+							}
+						});
+					},
+					cb => {
+						if (target_id) {
+							__client.set(game_id, 'Defend');
+							db.game.update({
+								game_id: game_id,
+								room_no: room_no,
+								day_number: day_number,
+								time: 'Vote'
+							}, {
+								$set: {
+									time: 'Defend',
+									defender: target_id
+								}
+							}, function(err) {
+								//투표로 처형할 사람이 있는 경우 최후의 반론 이후 찬반 투표를 함
+								io.to(room_no.toString()).emit('sys_message', {
+									type: 'game_procedure',
+									detail_type: 'defend',
+									set_time: 'defend',
+									msg: target_id +'의 최후의 변론'
+								});
+								cb(err);
+							});
+						} else {
+							//처형할 사람이 없으므로 바로 밤으로 넘어감
+							cb(null);
+						}
+					},
+					cb => {
+						if (target_id) {
+							set_timer({
+								sec: __defendLength,
+								room_no: room_no,
+								io: io
+							}, function() {
+								__client.set(game_id, 'Final');
+								db.game.update({
+									game_id: game_id,
+									room_no: room_no,
+									day_number: day_number,
+									time: 'Defend'
+								}, {
+									$set: {
+										time: 'Final',
+										defender: target_id
+									}
+								}, function(err) {
+									if (err) {
+										cb(err);
+									} else {
+										io.to(room_no.toString()).emit('sys_message', {
+											type: 'game_procedure',
+											detail_type: 'final',
+											set_time: 'final',
+											msg: target_id +'의 처형에 대한 최종 찬/반 투표'
+										});
+										set_timer({
+											sec: __finalLength,
+											room_no: room_no,
+											io: io
+										}, function() {
+											cb(null);
+										});
+									}
+								});
+							});
+						} else {
+							//처형할 사람이 없어서 바로 밤으로 넘어감.
+							cb(null);
+						}
+					},
+					cb => {
+						if (target_id) {
+							//찬 반 투표의 결과 확인
+							db.vote_log.aggregate([
+								{
+									$match: {
+										game_id: game_id,
+										room_no: room_no,
+										day_number: day_number,
+										time: 'Final',
+										target: target_id
+									}
+								}, {
+									$group: {
+										_id: '$is_agree',
+										count: {
+											$sum: 1
+										}
+									}
+								},
+								{
+									$project: {
+										_id: 0,
+										is_agree: "$_id",
+										count: 1
+									}
+								}, { 
+									$sort: {
+										count: -1
+								}
+							}], function(err, result) {
+								if (err) {
+									cb(err);
+								} else {
+									// result = [{is_agree: true, count: 찬성숫자}, {is_agree: false, count: 반대숫자}];
+									var agree = false;
+									if (result.length === 1) {
+										agree = result[0].is_agree;
+									} else if (result.length >= 2) {
+										if (result[0].count !== result[1].count) {
+											agree = true;
+										}
+									}
+
+									if (agree) {
+										//여기서 처형자를 죽이는 코드가 들어간다.
+										db.gamer.update({
+											room_no: room_no,
+											game_id: game_id,
+											user_id: target_id
+										}, {
+											$set: {
+												alive: false
+											}
+										}, function(err) {
+											
+											cb(err);
+											io.to(room_no.toString()).emit('sys_message', {
+												msg: target_id + '가 처형되었습니다.',
+												victim_id: target_id
+											});
+										});
+									} else {
+										io.to(room_no.toString()).emit('sys_message', {
+											msg: target_id + ' 처형이 기각되었습니다.'
+										});
+										cb(null);
+									}
+								}
+							});
+						} else {
+							//처형할 사람이 없는 경우
+							cb(null);
+						}
+					},
+					cb => {
+						if (target_id) {
+							//게임이 끝났는지 체크
+							mod_game.check_victory({
+								room_no: room_no,
+								game_id: game_id
+							}, function(err, result) {
+								if (err) {
+									cb(err);
+								} else {
+									if (result.finished) {
+										mod_game.dump_all_job({
+											room_no: room_no,
+											game_id: game_id
+										}, function(err, msg) {
+											if (result.winner === 'mafia') {
+												msg += '마피아';
+											} else if (result.winner === 'civilian') {
+												msg += '시민';
+											} else {
+												msg += result.winner;
+											}
+											msg += '팀이 이겼습니다.';
+											
+											io.to(room_no.toString()).emit('sys_message', {
+												type: 'game_status_change',
+												game_id: game_id,
+												detail_type: 'game_end',
+												msg: msg
+											});
+											cb('game_finished');
+										});
+									}
+								}
+							});
+						} else {
+							//처형할 사람이 없는 경우
+							cb(null);
+						}
+					},
+					cb => {
+						//여기서 다시 밤으로 돌아가는 코드가 들어간다.
+						__client.set(game_id, 'Night');
+						db.game.update({
+							room_no: room_no,
+							game_id: game_id,
+							day_number: day_number,
+							time: 'Final'
+						}, {
+							$set: {
+								time: 'Night',
+								defender: ''
+							}
+						}, function(err) {
+							cb(err)
+						});
+					},
+					cb => {
+						io.sockets.in(room_no.toString()).emit('sys_message', {
+							type: 'game_procedure',
+							detail_type: 'night',
+							set_time: 'night',
+							set_day: day_number,
+							msg: '밤이 되었습니다.'
+						});
+						set_timer({
+							room_no: room_no,
+							io: io,
+							sec: __nightLength
+						}, function() {
+							//밤이 지나고 다시 낮이 되는 코드가 들어갑니다.
+							mod_game.go_day({
+								room_no: room_no,
+								game_id: game_id
+							}, function(err, result) {
+								var victim_id = result.victim_id;
+								var police_msg = result.police_msg || '조사가 이루어지지 않았습니다.';
+								var revive = result.revive;
+								var msg = '낮이 되었습니다.<br />';
+
+								if (!victim_id) {
+									msg += '아무일도 일어나지 않았습니다.';
+								} else if (victim_id && !revive) {
+									msg += victim_id + '(이)가 마피아에게 암살되었습니다.';
+								} else if (victim_id && revive) {
+									msg += victim_id + '(이)가 마피아의 공격을 받았지만<br />의사에 의해 살아났습니다.';
+								}
+								io.to(room_no + '_police').emit('sys_message', {
+									msg: police_msg
+								});
+								io.to(room_no.toString()).emit('sys_message', {
+									set_time: 'day',
+									msg: msg,
+									type: 'game_procedure',
+									detail_type: 'day',
+									victim_id: revive ? '' : victim_id
+								});
+console.log('flag 1 - result!!:', result);								
+								if (result.winner) {
+console.log('flag 2 - result!!:', result);
+									mod_game.dump_all_job({
+										room_no: room_no,
+										game_id: game_id
+									}, function(err, msg) {
+										if (result.winner === 'mafia') {
+											msg += '마피아';
+										} else if (result.winner === 'civilian') {
+											msg += '시민';
+										} else {
+											msg += result.winner;
+										}
+										msg += '팀이 이겼습니다.';
+
+										io.to(room_no.toString()).emit('sys_message', {
+											type: 'game_status_change',
+											game_id: game_id,
+											detail_type: 'game_end',
+											msg: msg
+										});
+										cb('game_finished');
+									});
+								} else {
+									cb(err);
+								}
+							});
+						});
+					}
+				], function(err, result) {
+					if (err && err !== 'game_finished') {
+						io.sockets.in(room_no.toString()).emit('sys_message', {
+							type: 'error_message',
+							msg: err
+						});
+					} else {
+						
 					}
 				});
 			});

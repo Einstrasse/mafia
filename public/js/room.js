@@ -93,11 +93,38 @@ $(document).ready(function(){
 			});
 		});
 		$('.game_proceed').click(function() {
+			
+			socket.emit('game_proceed');
+			/*
 			$.get('/ajax/game_proceed', function(res) {
 				if (res && res.error) {
 					alert(res.error);
 					console.log(res.error);
 				}
+			});
+			*/
+		});
+		
+		$('.final-vote').click(function() {
+			var is_agree = ($(this).attr('value') == 'true') ? true : false;
+			console.log(is_agree);
+			
+			$.get('/ajax/vote', {
+				is_agree: is_agree
+			}, function(res) {
+				if (res.error) {
+					alert(res.error);
+				} else {
+					$('#final-vote-modal').modal('close');
+				}
+			});
+		});
+		
+		$('#agree_vote').click(function() {
+			$.get('/ajax/vote', {
+				is_agree: true
+			}, function(res) {
+				$('#final-vote-modal').modal('close');
 			});
 		});
 		
@@ -150,11 +177,12 @@ $(document).ready(function(){
 	
 	function showMessage(message) {
 		var avatar_box = createIdenticonAvatar( message.username );
-		var who = ( $("#username").val() == message.username )? 'mine' : 'others';
+		var who = ( user_id == message.username )? 'mine' : 'others';
 		var sender_visible = ( last_sender == message.username )? 'sender-hidden' : 'sender-show';
-
+		var message_type = message.message_type || '';
+		
 		$('#chat').append(
-			$('<div class="message">').addClass(who).addClass(sender_visible)
+			$('<div class="message">').addClass(who).addClass(sender_visible).addClass(message_type)
 				.append( avatar_box )
 				.append( $('<div class="text-box">')
 					.append( $('<div class="username-box">' ).text( message.username ) )
@@ -219,8 +247,14 @@ $(document).ready(function(){
 		socket.on('message', function (message) { showMessage(message); });
 		socket.on('sys_message', function (msg) { 
 			showSysMsg(msg.msg, msg.type);
+			if (msg.victim_id && msg.victim_id === user_id) {
+				socket.emit('notify_death');
+			}
 			if (msg.set_time) {
 				time = msg.set_time;
+			}
+			if (msg.set_day) {
+				day_number = msg.set_day;
 			}
 			if (msg.type === 'user_change') {
 				update_user_list();
@@ -231,7 +265,10 @@ $(document).ready(function(){
 				});
 			} else if (msg.type === 'game_procedure') {
 				if (msg.detail_type === 'game_start' || msg.detail_type === 'night') {
-					job = msg.job;
+					if (msg.job) {
+						job = msg.job;
+					};
+					
 					if (job === 'civilian') {
 						uncheck_radios();
 						disable_radios();
@@ -245,6 +282,14 @@ $(document).ready(function(){
 				} else if (msg.detail_type === 'vote') {
 					enable_radios();
 					uncheck_radios();
+				} else if (msg.detail_type === 'defend') {
+					disable_radios();
+					uncheck_radios();
+				} else if (msg.detail_type === 'final') {
+					disable_radios();
+					uncheck_radios();
+					$('#final-vote-content').text(msg.msg);
+					$('#final-vote-modal').modal('open');
 				}
 			}
 		});
