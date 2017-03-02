@@ -123,7 +123,7 @@ module.exports = {
 					if (!user_id || !room_no) {
 						return;
 					}
-					socket.leave(room_no);
+					socket.leave(room_no.toString());
 					async.waterfall([
 						cb => {
 							mod_room.leave_room({
@@ -536,14 +536,15 @@ console.log('flag 3 - result!!:', result);
 					});
 				} else if (msg.detail_type === 'game_end') {
 					console.log('게임 끝날 시 처리');
+					var room_no = socket.handshake.session.room_no;
 					delete socket.handshake.session.game_id;
 					delete socket.handshake.session.is_dead;
 					delete socket.handshake.session.job;
 					delete socket.handshake.session.kor_job;
 					socket.handshake.session.save();
-					socket.leave(room_no + '_mafia');
-					socket.leave(room_no + '_police');
-					socket.leave(room_no + '_dead');
+					socket.leave(room_no.toString() + '_mafia');
+					socket.leave(room_no.toString() + '_police');
+					socket.leave(room_no.toString() + '_dead');
 				}
 			});
 			
@@ -940,7 +941,6 @@ console.log('flag 3 - result!!:', result);
 							room_no: room_no,
 							game_id: game_id,
 							day_number: day_number,
-							time: 'Final'
 						}, {
 							$set: {
 								time: 'Night',
