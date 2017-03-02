@@ -535,6 +535,7 @@ console.log('flag 3 - result!!:', result);
 						}
 					});
 				} else if (msg.detail_type === 'game_end') {
+					console.log('게임 끝날 시 처리');
 					delete socket.handshake.session.game_id;
 					delete socket.handshake.session.is_dead;
 					delete socket.handshake.session.job;
@@ -922,6 +923,8 @@ console.log('flag 3 - result!!:', result);
 											});
 											cb('game_finished');
 										});
+									} else {
+										cb(null);
 									}
 								}
 							});
